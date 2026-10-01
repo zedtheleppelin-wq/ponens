@@ -1,13 +1,18 @@
-// =====================================================================
-//  Lösche den ganzen Inhalt dieser Datei und füge stattdessen den
-//  grauen Codeblock ein, den dir Firebase anzeigt.
-//  Es darf ruhig alles drinstehen, auch die Zeilen mit "import".
-// =====================================================================
 const firebaseConfig = {
-  apiKey: "HIER_EINFUEGEN",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
+
+  apiKey: "AIzaSyB5MyFoVFcaWDv5KmP9e53rffAp-qI8DC4",
+
+  authDomain: "logik-scrabble.firebaseapp.com",
+
+  databaseURL: "https://logik-scrabble-default-rtdb.europe-west1.firebasedatabase.app",
+
+  projectId: "logik-scrabble",
+
+  storageBucket: "logik-scrabble.firebasestorage.app",
+
+  messagingSenderId: "761364944524",
+
+  appId: "1:761364944524:web:dc98605bf22890ac1c0da9"
+
 };
+
