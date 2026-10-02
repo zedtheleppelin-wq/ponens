@@ -580,6 +580,15 @@ body{background:
 .qrbig svg{width:min(78vw,62vh,520px);height:auto;background:#fff;border-radius:10px;padding:6px}
 .qrbig p{text-align:center;margin:0}
 .sheet:has(.qrbig){width:min(600px,100%)}
+
+.choice{display:flex;flex-direction:column;gap:4px;text-align:left;font:inherit;border:0;border-radius:18px;padding:18px 18px;background:var(--card);color:var(--ink);box-shadow:var(--shadow);cursor:pointer;transition:transform .15s}
+.choice:active{transform:scale(.98)}
+.choice b{font-family:var(--serif);font-size:20px}
+.choice span{color:var(--muted);font-size:14.5px;line-height:1.45}
+.choice:disabled{opacity:.45}
+.item.invite{outline:2px solid var(--accent)}
+
+#modeBody,#playBody{display:flex;flex-direction:column;gap:12px}
 </style>
 </head>
 <body>
@@ -590,19 +599,19 @@ body{background:
     <h1>Ponens</h1>
     <p class="sub">Leg Aussagen aufs Raster und zieh daraus gültige Schlüsse.</p>
     <div class="btns">
-      <button class="btn primary big" data-act="start">Starten</button>
-      <button class="btn big" data-act="tutorial">Tutorial</button>
+      <button class="btn primary big" data-act="newGame">Neues Spiel</button>
+      <button class="btn big" data-act="start">Beitreten</button>
+      <button class="linkbtn" data-act="tutorial">Tutorial ansehen</button>
     </div>
   </section>
 
   <!-- Online: Spiel erstellen / beitreten -->
   <section id="play" class="screen center scroll hidden">
     <div class="panel">
-      <h2>Mitspielen</h2>
-      <p class="lead">Jede Person spielt auf ihrem eigenen Gerät. Öffnet dafür alle diese Seite.</p>
+      <h2>Beitreten</h2>
+      <p class="lead">Gib den Code ein, den dir die Person zeigt, die das Spiel erstellt hat.</p>
       <div id="playBody"></div>
       <div class="center-btns">
-        <button class="linkbtn" data-act="local">Lieber alle an einem Gerät spielen</button>
         <button class="linkbtn" data-act="home">Zurück</button>
       </div>
     </div>
@@ -622,6 +631,16 @@ body{background:
     <div class="panel" id="dashBody"></div>
   </section>
 
+  <!-- Neues Spiel: online oder an einem Gerät -->
+  <section id="mode" class="screen center scroll hidden">
+    <div class="panel">
+      <h2>Neues Spiel</h2>
+      <p class="lead">Wie wollt ihr spielen?</p>
+      <div id="modeBody"></div>
+      <div class="center-btns"><button class="linkbtn" data-act="home">Zurück</button></div>
+    </div>
+  </section>
+
   <!-- Lokal: ein Gerät -->
   <section id="setup" class="screen center hidden">
     <h2>Wie viele spielen mit?</h2>
@@ -634,7 +653,7 @@ body{background:
     <div class="names" id="names"></div>
     <div id="localTime"></div>
     <button class="btn primary big" data-act="go">Spiel beginnen</button>
-    <button class="linkbtn" data-act="start">Zurück</button>
+    <button class="linkbtn" data-act="newGame">Zurück</button>
   </section>
 
   <section id="game" class="screen hidden">
@@ -1675,7 +1694,7 @@ function menuHTML(){
   }
   return`<h3>Pause</h3><div class="stack">
     <button class="btn primary" data-act="closeModal">${player?'Weiterspielen':'Weiter zuschauen'}</button>
-    ${evAdmin?'<button class="btn" data-act="toDash">Zur Übersicht aller Gruppen</button>':''}
+    ${evAdmin&&E.ev&&E.ev.groups.length>1?'<button class="btn" data-act="toDash">Zur Übersicht aller Gruppen</button>':''}
     ${turnBtn}
     ${player&&!S.ended?'<button class="btn" data-act="finish">Spiel beenden und auswerten</button>':''}
     <button class="btn" data-act="home">Zum Hauptmenü</button></div>
@@ -1930,6 +1949,7 @@ async function initPlatform(){
     }
   }
   P.ready=true;
+  if(S.screen==='mode')renderMode();
   if(S.screen==='play'){renderPlay();subscribeLists();}
 }
 function myName(){
@@ -1946,10 +1966,7 @@ function subscribeLists(){
   unsub(listSubs);
   if(!P.online)return;
   const col=P.db.collection('games');
-  listSubs.push(col.where('status','==','lobby').limit(40).onSnapshot(s=>{
-    L.open=s.docs.map(d=>d.data()).filter(g=>Date.now()-g.createdAt<6*3600e3).sort((a,b)=>b.createdAt-a.createdAt);
-    if(S.screen==='play')renderPlayLists();
-  },snapErr));
+
   listSubs.push(P.db.collection('events').where('adminId','==',P.uid).limit(20).onSnapshot(s=>{
     L.events=s.docs.map(d=>d.data()).filter(e=>e.status!=='ended').sort((a,b)=>b.createdAt-a.createdAt);
     if(S.screen==='play')renderPlayLists();
@@ -1978,13 +1995,12 @@ function renderPlay(){
       <div class="center-btns"><button class="btn primary big" data-act="local">Alle an einem Gerät spielen</button></div>`;
     return;
   }
-  const inv=L.invite?`<div class="item" style="outline:2px solid var(--accent)"><div class="t"><b>Du wurdest eingeladen</b><small>Spiel ${esc(L.invite)}</small></div><button class="btn primary" data-act="join" data-code="${esc(L.invite)}">Beitreten</button></div>`:'';
+  const inv=L.invite?`<div class="item invite"><div class="t"><b>Du wurdest zu einem Spiel eingeladen</b><small>Code ${esc(L.invite)}</small></div><button class="btn primary" data-act="join" data-code="${esc(L.invite)}">Beitreten</button></div>`:'';
+  const evInv=L.eventInvite?`<div class="item invite"><div class="t"><b>Du wurdest eingeladen</b><small>Code ${esc(L.eventInvite)}</small></div><button class="btn primary" data-act="joinEvent" data-code="${esc(L.eventInvite)}">Beitreten</button></div>`:'';
   b.innerHTML=`<label class="field"><span>Dein Name</span><input id="myName" maxlength="14" autocomplete="nickname" value="${esc(myName())}"></label>
-    ${inv}
-    ${L.eventInvite?`<div class="item" style="outline:2px solid var(--accent)"><div class="t"><b>Du wurdest zu einer Veranstaltung eingeladen</b><small>Code ${esc(L.eventInvite)}</small></div><button class="btn primary" data-act="joinEvent" data-code="${esc(L.eventInvite)}">Beitreten</button></div>`:''}
-    <button class="btn ${inv||L.eventInvite?'':'primary '}big" data-act="create" style="width:100%">Neues Spiel erstellen</button>
-    <div class="codeline"><input id="codeIn" maxlength="6" placeholder="Code" autocomplete="off" autocapitalize="characters"><button class="btn" data-act="joinCode">Mit Code beitreten</button></div>
-    <button class="btn" data-act="createEvent" style="width:100%">Veranstaltung mit mehreren Gruppen erstellen</button>
+    ${inv}${evInv}
+    <div class="codeline"><input id="codeIn" maxlength="6" placeholder="Code" autocomplete="off" autocapitalize="characters"><button class="btn primary" data-act="joinCode">Beitreten</button></div>
+    <p class="hintline">Oder scanne den QR-Code auf dem Gerät, auf dem das Spiel erstellt wurde.</p>
     <div id="playLists"></div>`;
   renderPlayLists();
 }
@@ -1995,11 +2011,9 @@ function renderPlayLists(){
     const turn=g.players[g.cur]?.id===P.uid?'Du bist dran':`${g.players[g.cur]?.name||''} ist dran`;
     return`<div class="item"><div class="t"><b>Mit ${esc(others||'dir allein')}</b><small>${esc(turn)}</small></div><button class="btn primary" data-act="resume" data-code="${esc(g.code)}">Öffnen</button></div>`;
   }).join('');
-  const open=L.open.map(g=>`<div class="item"><div class="t"><b>Spiel von ${esc(g.hostName||'jemandem')}</b><small>Code ${esc(g.code)}</small></div>
-    ${g.hostId===P.uid?`<button class="btn" data-act="rejoin" data-code="${esc(g.code)}">Öffnen</button>`:`<button class="btn" data-act="join" data-code="${esc(g.code)}">Beitreten</button>`}</div>`).join('');
-  const evs=(L.events||[]).map(e=>`<div class="item"><div class="t"><b>Veranstaltung ${esc(e.code)}</b><small>${e.status==='lobby'?'Gruppen werden eingeteilt':'Gruppen spielen'}</small></div><button class="btn primary" data-act="openEvent" data-code="${esc(e.code)}">Öffnen</button></div>`).join('');
-  el.innerHTML=`${evs?`<div class="list"><h3>Deine Veranstaltungen</h3>${evs}</div>`:''}${mine?`<div class="list"><h3>Deine laufenden Spiele</h3>${mine}</div>`:''}
-    <div class="list"><h3>Offene Spiele</h3>${open||'<p class="empty">Gerade wartet niemand. Erstelle ein Spiel und schick deinen Mitspielern den Einladungslink.</p>'}</div>`;
+  const evs=(L.events||[]).map(e=>`<div class="item"><div class="t"><b>Dein Spiel ${esc(e.code)}</b><small>${e.status==='lobby'?'Warteraum ist offen':(e.groups.length>1?e.groups.length+' Gruppen spielen':'läuft')}</small></div><button class="btn primary" data-act="openEvent" data-code="${esc(e.code)}">Öffnen</button></div>`).join('');
+  el.innerHTML=`${evs?`<div class="list"><h3>Von dir erstellt</h3>${evs}</div>`:''}${mine?`<div class="list"><h3>Deine laufenden Spiele</h3>${mine}</div>`:''}
+`;
 }
 async function shareInvite(){
   const url=location.origin+location.pathname+'?spiel='+encodeURIComponent(L.lobby.code);
@@ -2128,6 +2142,16 @@ function showQrBig(kind,code){
   showModal(`<div class="qrbig">${svg}<div class="code">${esc(code)}</div><p>Scannen oder unter „Starten“ den Code eingeben.</p></div><div class="stack"><button class="btn primary" data-act="closeModal">Schließen</button></div>`);
 }
 
+/* ---------- Neues Spiel: online oder an einem Gerät ---------- */
+function renderMode(){
+  const b=$('#modeBody');if(!b)return;
+  const on=P.ready&&P.online;
+  b.innerHTML=`${on?`<label class="field"><span>Dein Name</span><input id="myName" maxlength="14" autocomplete="nickname" value="${esc(myName())}"></label>`:''}
+    <button class="choice" data-act="modeOnline" ${on?'':'disabled'}><b>🌐 Online</b><span>Jeder spielt auf seinem eigenen Gerät. Die anderen treten per QR-Code bei. Auf Wunsch in mehreren Gruppen.</span></button>
+    <button class="choice" data-act="modeLocal"><b>📱 An einem Gerät</b><span>Ihr reicht ein Handy oder Tablet nach jedem Zug weiter.</span></button>
+    ${P.ready&&!P.online?'<p class="hintline">Online geht nur über deinen GitHub-Link mit eingerichteter Datenbank.</p>':''}${P.ready?'':'<p class="hintline">Verbinde…</p>'}`;
+}
+
 /* ================= Veranstaltungen: Admin teilt Gruppen ein ================= */
 const E={code:null,ev:null,people:[],sel:null,games:{},size:3};
 let eventSubs=[],dashSubs=[];
@@ -2140,8 +2164,8 @@ async function createEvent(){
   const name=readName();if(!name)return;
   const code=makeCode();
   try{
-    await P.db.doc('events/'+code).set({code,adminId:P.uid,adminName:name,createdAt:Date.now(),status:'lobby',adminPlays:false,
-      groups:[{name:'Gruppe 1',members:[]},{name:'Gruppe 2',members:[]}],v:7});
+    await P.db.doc('events/'+code).set({code,adminId:P.uid,adminName:name,createdAt:Date.now(),status:'lobby',adminPlays:true,turnTime:DEFAULT_TURN_TIME,
+      groups:[{name:'Gruppe 1',members:[]}],v:7});
   }catch(e){return dbErr(e);}
   openEvent(code);
 }
@@ -2183,7 +2207,12 @@ function openEvent(code){
 function onEventUpdate(){
   const ev=E.ev;
   if(ev.status!=='lobby'){
-    if(isEvAdmin()){if(S.screen==='event')openDash();else if(S.screen==='dash')renderDash();return;}
+    if(isEvAdmin()){
+      const mine=ev.groups.find(g=>g.members.includes(P.uid));
+      if(S.screen==='event'){if(ev.groups.length===1&&mine&&mine.gameCode)subscribeGame(mine.gameCode);else openDash();}
+      else if(S.screen==='dash')renderDash();
+      return;
+    }
     const g=ev.groups.find(g=>g.members.includes(P.uid));
     if(g&&g.gameCode&&S.screen==='event'){subscribeGame(g.gameCode);return;}
   }
@@ -2198,20 +2227,31 @@ function pool(){
 function renderEvent(){
   const b=$('#eventBody'),ev=E.ev;
   if(!ev){b.innerHTML='<p class="empty" style="text-align:center">Lade Veranstaltung…</p>';return;}
-  const head=`<h2>Veranstaltung</h2><div class="code">${esc(ev.code)}</div>${isEvAdmin()&&ev.status==='lobby'?qrBlock('event',ev.code):''}
+  const head=`<h2>Warteraum</h2><div class="code">${esc(ev.code)}</div>${isEvAdmin()&&ev.status==='lobby'?qrBlock('event',ev.code):''}
     <button class="btn" data-act="shareEvent" style="align-self:center">Einladungslink teilen</button>`;
   if(!isEvAdmin()){
-    const g=ev.groups.find(g=>g.members.includes(P.uid));
+    const g=ev.groups.length>1?ev.groups.find(g=>g.members.includes(P.uid)):null;
     let t;
-    if(ev.status!=='lobby')t=g?'<p class="waiting" style="text-align:center">Deine Gruppe startet gleich…</p>':`<div class="note-box">Die Gruppen spielen schon. Frag ${esc(ev.adminName)}, ob du in der nächsten Runde dabei bist.</div>`;
+    const gReal=ev.groups.find(x=>x.members.includes(P.uid));
+    if(ev.status!=='lobby')t=gReal?'<p class="waiting" style="text-align:center">Deine Gruppe startet gleich…</p>':`<div class="note-box">Die Gruppen spielen schon. Frag ${esc(ev.adminName)}, ob du in der nächsten Runde dabei bist.</div>`;
     else if(g)t=`<div class="team mine"><div class="th"><b>${esc(g.name)}</b><small>${g.members.length}</small></div>${g.members.map(id=>`<div class="tm">${esc(personName(id))}${id===P.uid?' <span class="you">(du)</span>':''}</div>`).join('')}</div>
       <p class="waiting" style="text-align:center">Warte, bis ${esc(ev.adminName)} alle Gruppen startet<span class="dots"><i>.</i><i>.</i><i>.</i></span></p>`;
-    else t=`<p class="waiting" style="text-align:center">Du bist dabei. ${esc(ev.adminName)} teilt gleich die Gruppen ein<span class="dots"><i>.</i><i>.</i><i>.</i></span></p>`;
-    b.innerHTML=head+`<p class="lead">${E.people.length} Personen sind da.</p>`+t+`<div class="center-btns"><button class="linkbtn" data-act="leaveEvent">Veranstaltung verlassen</button></div>`;
+    else t=`<p class="waiting" style="text-align:center">Du bist dabei. Warte, bis ${esc(ev.adminName)} das Spiel startet<span class="dots"><i>.</i><i>.</i><i>.</i></span></p>`;
+    b.innerHTML=head+`<p class="lead">${E.people.length+(ev.adminPlays?1:0)} Personen sind da.</p>`+t+`<div class="center-btns"><button class="linkbtn" data-act="leaveEvent">Warteraum verlassen</button></div>`;
     return;
   }
   // Admin-Ansicht
   const pl=pool(),sel=E.sel;
+  if(ev.groups.length===1){
+    const all=[...ev.groups[0].members,...pl];
+    b.innerHTML=head+`${timeSel(ev.turnTime??DEFAULT_TURN_TIME,'eventTime')}
+      <label class="toggle"><input type="checkbox" data-act="toggleAdminPlays" ${ev.adminPlays?'checked':''}><span>Ich spiele selbst mit</span></label>
+      <div class="list"><h3>Dabei (${all.length})</h3><div class="chips poolbox">${all.map(id=>`<span class="pchip">${esc(personName(id))}${id===P.uid?' (du)':''}</span>`).join('')||'<span class="empty">Noch niemand. Zeig den QR-Code oder teile den Link.</span>'}</div></div>
+      <button class="btn" data-act="addGroup" style="align-self:center">In Gruppen aufteilen</button>
+      <button class="btn primary big" data-act="startEvent" style="width:100%" ${all.length>=2&&all.length<=MAX_PLAYERS?'':'disabled'}>${all.length<2?'Warte auf Mitspieler…':all.length>MAX_PLAYERS?`Höchstens ${MAX_PLAYERS} pro Gruppe, bitte aufteilen`:`Spiel mit ${all.length} Personen starten`}</button>
+      <div class="center-btns"><button class="linkbtn" data-act="closeEvent">Spiel auflösen</button></div>`;
+    return;
+  }
   const chip=id=>`<button class="pchip${sel===id?' on':''}" data-act="pickPerson" data-id="${esc(id)}">${esc(personName(id))}${id===P.uid?' (du)':''}</button>`;
   const groups=ev.groups.map((g,gi)=>`<div class="team grp${sel?' target':''}" data-act="toGroup" data-gi="${gi}">
       <div class="th"><b>${esc(g.name)}</b><small>${g.members.length}</small><button class="mini-btn" data-act="renameGroup" data-gi="${gi}" title="Umbenennen">✎</button>${ev.groups.length>1?`<button class="mini-btn" data-act="delGroup" data-gi="${gi}" title="Gruppe entfernen">✕</button>`:''}</div>
@@ -2221,8 +2261,8 @@ function renderEvent(){
   const filled=ev.groups.filter(g=>g.members.length);
   const ok=filled.length>0&&filled.every(g=>g.members.length>=2&&g.members.length<=MAX_PLAYERS);
   b.innerHTML=head+`
-    <label class="toggle"><input type="checkbox" data-act="toggleAdminPlays" ${ev.adminPlays?'checked':''}><span>Ich spiele selbst mit</span></label>
     ${timeSel(ev.turnTime??DEFAULT_TURN_TIME,'eventTime')}
+    <label class="toggle"><input type="checkbox" data-act="toggleAdminPlays" ${ev.adminPlays?'checked':''}><span>Ich spiele selbst mit</span></label>
     <div class="list"><h3>Noch ohne Gruppe (${pl.length})</h3>
       <div class="chips poolbox${sel?' target':''}" data-act="toPool">${pl.map(chip).join('')||'<span class="empty">Alle sind eingeteilt.</span>'}</div></div>
     <p class="hintline">${sel?`Tippe jetzt auf die Gruppe für <b>${esc(personName(sel))}</b>.`:'Tippe eine Person an und dann eine Gruppe.'}</p>
@@ -2232,7 +2272,7 @@ function renderEvent(){
       <button class="btn" data-act="autoGroups">Automatisch verteilen</button></div>
     <button class="btn primary big" data-act="startEvent" style="width:100%" ${ok?'':'disabled'}>${ok?`${filled.length} Gruppe${filled.length>1?'n':''} starten`:'Gruppen einteilen…'}</button>
     ${pl.length&&ok?`<p class="empty" style="text-align:center">${pl.length} Person${pl.length>1?'en':''} ohne Gruppe ${pl.length>1?'werden':'wird'} beim Start auf die kleinsten Gruppen verteilt.</p>`:''}
-    <div class="center-btns"><button class="linkbtn" data-act="closeEvent">Veranstaltung auflösen</button></div>`;
+    <div class="center-btns"><button class="linkbtn" data-act="closeEvent">Spiel auflösen</button></div>`;
 }
 async function assignPerson(id,gi){
   const ev=clone(E.ev);
@@ -2251,7 +2291,7 @@ async function autoGroups(){
 async function startEvent(){
   const ev=clone(E.ev);
   // Übrige auf die kleinsten Gruppen verteilen, leere Gruppen weglassen
-  pool().forEach(id=>{const g=ev.groups.filter(g=>g.members.length).sort((a,b)=>a.members.length-b.members.length)[0];if(g)g.members.push(id);});
+  pool().forEach(id=>{const used=ev.groups.filter(g=>g.members.length),cand=used.length?used:ev.groups;const g=[...cand].sort((a,b)=>a.members.length-b.members.length)[0];if(g)g.members.push(id);});
   ev.groups=ev.groups.filter(g=>g.members.length);
   if(ev.groups.some(g=>g.members.length<2||g.members.length>MAX_PLAYERS)){toast(`Jede Gruppe braucht 2 bis ${MAX_PLAYERS} Personen.`);return;}
   try{
@@ -2272,7 +2312,7 @@ async function leaveEvent(){
   unsub(eventSubs);goPlay();
 }
 async function closeEvent(){
-  if(!confirm('Veranstaltung wirklich auflösen?'))return;
+  if(!confirm('Spiel wirklich auflösen?'))return;
   try{await P.db.doc('events/'+E.code).delete();}catch(e){dbErr(e);}
   unsub(eventSubs);goPlay();
 }
@@ -2327,13 +2367,16 @@ async function endEvent(){
 /* ================= Ereignisse ================= */
 const ACT={
   start(){goPlay();},
+  newGame(){unsub(listSubs);showScreen('mode');renderMode();},
+  modeOnline(){if(P.online)createEvent();},
+  modeLocal(){ACT.local();},
   local(){unsub(listSubs);showScreen('setup');renderNames();$('#localTime').innerHTML=timeSel(S.localTime??DEFAULT_TURN_TIME,'localTime');},
   tutorial(){startTutorial();},
   count(b){S.count=+b.dataset.n;renderNames();},
   go(){const names=$$('#names input').map((i,k)=>i.value.trim()||'Spieler '+(k+1));startLocalGame(names,S.localTime??DEFAULT_TURN_TIME);},
   home(){closeModal();unsub(gameSubs);unsub(listSubs);unsub(eventSubs);unsub(dashSubs);E.ev=null;if(S.blitz)clearInterval(S.blitz.timer);S.blitz=null;S.tutorial=false;S.ended=false;S.players=null;S.online=false;$('#coach').classList.add('hidden');$('#toasts').innerHTML='';showScreen('start');},
   again(){startLocalGame(S.players.map(p=>p.name),S.turnTime);},
-  tutStart(){S.tutorial=false;$('#coach').classList.add('hidden');goPlay();},
+  tutStart(){S.tutorial=false;$('#coach').classList.add('hidden');ACT.newGame();},
   coachNext(){coachNext();},
   coachSkip(){ACT.tutStart();},
   create(){if(P.online)createGame();},
