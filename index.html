@@ -10,6 +10,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <style>
 :root{
   box-sizing:border-box;
@@ -571,6 +572,14 @@ body{background:
 .countdown{position:fixed;left:50%;top:45%;z-index:70;font-family:var(--serif);font-weight:800;font-size:120px;color:var(--walnut);
   text-shadow:0 4px 0 rgba(255,214,10,.9),0 10px 30px rgba(60,30,5,.35);pointer-events:none;transform:translate(-50%,-50%)}
 .countdown.word{font-size:54px;white-space:nowrap}
+
+.qr{align-self:center;display:flex;flex-direction:column;align-items:center;gap:8px;background:#fff;border:0;border-radius:18px;padding:14px;box-shadow:var(--shadow);cursor:pointer;font:inherit;width:min(300px,80vw)}
+.qr svg{width:100%;height:auto;display:block;border-radius:6px}
+.qr span{font-size:13px;color:#806b55;line-height:1.35}
+.qrbig{display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:14px}
+.qrbig svg{width:min(78vw,62vh,520px);height:auto;background:#fff;border-radius:10px;padding:6px}
+.qrbig p{text-align:center;margin:0}
+.sheet:has(.qrbig){width:min(600px,100%)}
 </style>
 </head>
 <body>
@@ -2041,6 +2050,7 @@ function renderLobby(){
   b.innerHTML=`<h2>Warteraum</h2>
     <p class="lead">Schick deinen Mitspielern den Einladungslink. Oder sie öffnen diese Seite, tippen auf „Starten“ und wählen das Spiel mit diesem Code:</p>
     <div class="code">${esc(g.code)}</div>
+    ${qrBlock('spiel',g.code)}
     <button class="btn" data-act="share" style="align-self:center">Einladungslink teilen</button>
     ${host?timeSel(g.turnTime??DEFAULT_TURN_TIME,'lobbyTime'):''}
     ${host?`<label class="toggle"><input type="checkbox" data-act="toggleTeams" ${g.teamsOn?'checked':''}><span>In Gruppen gegeneinander spielen</span></label>`:(g.teamsOn?'<p class="lead">Ihr spielt in Gruppen. Such dir eine aus.</p>':'')}
@@ -2098,6 +2108,25 @@ function timeSel(cur,act){
   return`<div class="timesel"><span>Zeit pro Zug</span><span class="seg-mini">${[[60,'60 s'],[90,'90 s'],[0,'ohne']].map(([v,l])=>`<button class="${cur===v?'on':''}" data-act="${act}" data-t="${v}">${l}</button>`).join('')}</span></div>`;
 }
 async function setLobbyTime(t){const g=L.lobby;if(!g||g.hostId!==P.uid)return;try{await P.db.doc('games/'+g.code).set({...clone(g),turnTime:t});}catch(e){dbErr(e);}}
+
+/* ---------- QR-Code zum Beitreten ---------- */
+function inviteUrl(kind,code){return location.origin+location.pathname+'?'+kind+'='+encodeURIComponent(code);}
+function qrSVG(text){
+  if(typeof qrcode!=='function')return null;
+  const q=qrcode(0,'M');q.addData(text);q.make();
+  const n=q.getModuleCount(),m=2;let d='';
+  for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))d+=`M${c+m} ${r+m}h1v1h-1z`;
+  return`<svg viewBox="0 0 ${n+2*m} ${n+2*m}" shape-rendering="crispEdges" role="img" aria-label="QR-Code zum Beitreten"><rect width="100%" height="100%" fill="#fff"/><path d="${d}" fill="#2d2016"/></svg>`;
+}
+function qrBlock(kind,code){
+  const svg=qrSVG(inviteUrl(kind,code));
+  if(!svg)return'';
+  return`<button class="qr" data-act="qrBig" data-kind="${kind}" data-code="${esc(code)}" title="Groß anzeigen">${svg}<span>Mit der Handykamera scannen, um beizutreten. Antippen für Vollbild.</span></button>`;
+}
+function showQrBig(kind,code){
+  const svg=qrSVG(inviteUrl(kind,code));if(!svg)return;
+  showModal(`<div class="qrbig">${svg}<div class="code">${esc(code)}</div><p>Scannen oder unter „Starten“ den Code eingeben.</p></div><div class="stack"><button class="btn primary" data-act="closeModal">Schließen</button></div>`);
+}
 
 /* ================= Veranstaltungen: Admin teilt Gruppen ein ================= */
 const E={code:null,ev:null,people:[],sel:null,games:{},size:3};
@@ -2169,7 +2198,7 @@ function pool(){
 function renderEvent(){
   const b=$('#eventBody'),ev=E.ev;
   if(!ev){b.innerHTML='<p class="empty" style="text-align:center">Lade Veranstaltung…</p>';return;}
-  const head=`<h2>Veranstaltung</h2><div class="code">${esc(ev.code)}</div>
+  const head=`<h2>Veranstaltung</h2><div class="code">${esc(ev.code)}</div>${isEvAdmin()&&ev.status==='lobby'?qrBlock('event',ev.code):''}
     <button class="btn" data-act="shareEvent" style="align-self:center">Einladungslink teilen</button>`;
   if(!isEvAdmin()){
     const g=ev.groups.find(g=>g.members.includes(P.uid));
@@ -2349,6 +2378,7 @@ const ACT={
   watchGroup(b){unsub(dashSubs);resumeGame(b.dataset.code);},
   toDash(){closeModal();if(E.ev&&E.code===S.eventCode)openDash();else openEvent(S.eventCode);},
   endEvent(){endEvent();},
+  qrBig(b){showQrBig(b.dataset.kind,b.dataset.code);},
   lobbyTime(b){setLobbyTime(+b.dataset.t);},
   eventTime(b){writeEvent({turnTime:+b.dataset.t});},
   localTime(b){S.localTime=+b.dataset.t;$('#localTime').innerHTML=timeSel(S.localTime,'localTime');}
