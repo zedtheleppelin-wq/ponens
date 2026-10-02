@@ -726,14 +726,21 @@ const KINDS={
   boss3:{name:'Großer Endgegner',bonus:40,minDepth:3,boss:true,gen:(A,B,C,D)=>({rows:[['n','E','→','n','E'],['n','E','→','n','E'],['n','E','→','n','E'],['n','E']],concl:[D],sol:[A,B,B,C,C,D,A]})}
 };
 function genTpl(kind){const[A,B,C,D]=shuffle([...EMOJIS]);return KINDS[kind].gen(A,B,C,D,Math.random()<.5);}
+// 10 sanfte Level: Niveau wie das Aufwärmen, längere Kombinationen kommen nur langsam dazu.
+// (Endgegner, Oder-Tafeln und die steile Progression sind für später aufgehoben.)
 const LEVELS=[
   {name:'Aufwärmen',bag:50,open:0,bands:[['mini','mini'],['mp','mt']],extra:['mini','mp','mt']},
-  {name:'Ketten',bag:70,open:.5,bands:[['mp','mini'],['mt','mp'],['chain']],extra:['mp','mt','mini','chain']},
-  {name:'Der erste Endgegner',bag:80,open:.6,bands:[['boss','mini'],['mt','mp'],['chain']],extra:['mp','mt','chain','mini']},
-  {name:'Oder',bag:90,open:.8,bands:[['oder','mini'],['chain','mini'],['mt','mp']],extra:['mp','oder','mt','chain']},
-  {name:'Finale',bag:100,open:1,bands:[['boss3'],['oder','mini'],['chain','mini'],['mp','mt']],extra:['chain','mp','oder','mt']}
+  {name:'Eingrooven',bag:50,open:0,bands:[['mini','mp'],['mt','mp']],extra:['mp','mt','mini']},
+  {name:'Hin und zurück',bag:50,open:0,bands:[['mp','mt'],['mini','mt']],extra:['mt','mp','mini']},
+  {name:'Erste Lücken',bag:55,open:.15,bands:[['mp','mt'],['mini','mp']],extra:['mp','mt','mini']},
+  {name:'Die erste Kette',bag:55,open:.15,bands:[['mp','mt'],['mini','chain']],extra:['mp','mt','mini']},
+  {name:'Durchatmen',bag:55,open:.2,bands:[['mp','mt'],['mt','mp']],extra:['mp','mt','mini']},
+  {name:'Ketten und Lücken',bag:60,open:.25,bands:[['mp','mini'],['mt','chain']],extra:['mp','mt','mini']},
+  {name:'Doppelt hält besser',bag:60,open:.3,bands:[['mp','mt'],['chain','mini']],extra:['mp','mt','chain']},
+  {name:'Fast geschafft',bag:60,open:.35,bands:[['mp','mt'],['chain','mp']],extra:['mp','mt','chain']},
+  {name:'Finale',bag:65,open:.4,bands:[['mp','mt'],['chain','chain']],extra:['mp','mt','chain']}
 ];
-const BLITZ=[{kind:'mp',sec:30},{kind:'mt',sec:40},{kind:'chain',sec:50},{kind:'oder',sec:60}];
+const BLITZ=[{kind:'mp',sec:30},{kind:'mt',sec:35},{kind:'mp',sec:30},{kind:'mt',sec:35},{kind:'chain',sec:50},{kind:'mp',sec:30},{kind:'mt',sec:35},{kind:'chain',sec:50},{kind:'chain',sec:50}];
 const NEXT={L:'BC',N:'LO',B:'LNO',O:'LNO',C:'BC'};
 const RULES={
   1:'Zwischen zwei Aussagen gehört ein → oder ∨.',
@@ -1668,7 +1675,7 @@ function rulesHTML(){
   ${mini(['🌧️ → 🍕','🌧️','|','🍕'])}
   <ul>
     <li><b>Modus Ponens:</b> aus X → Y und X folgt Y. <b>Modus Tollens:</b> aus X → Y und ¬Y folgt ¬X.</li>
-    <li>Ins Holz gebrannte Steine sind <b>Vorgaben</b>. Sie zeigen, welcher Schluss gedacht ist. In jedes große Feld kommt genau ein Emoji, in die kleinen Felder davor bei Bedarf ein ¬ (nicht). Gelöst ist eine Tafel erst, wenn alle großen Felder belegt sind. Ab Level 2 sind manche Pfeile offen: Dort legst du selbst → oder ∨.</li>
+    <li>Ins Holz gebrannte Steine sind <b>Vorgaben</b>. Sie zeigen, welcher Schluss gedacht ist. In jedes große Feld kommt genau ein Emoji, in die kleinen Felder davor bei Bedarf ein ¬ (nicht). Gelöst ist eine Tafel erst, wenn alle großen Felder belegt sind. Ab Level 4 sind manche Pfeile offen: Dort legst du selbst → oder ∨.</li>
     <li>Gelöste Tafeln bleiben liegen. Ist das ganze Brett voll, bekommen <b>alle</b> ${TEAM_BONUS} Punkte, und nach einer <b>Blitzrunde</b> geht es ins nächste, größere Level. Danach werden die Leisten neu verteilt.</li>
     <li>In der Blitzrunde bekommen alle dieselben Steine. Wer zuerst einen gültigen Schluss legt, bekommt ${BLITZ_POINTS.map(p=>'+'+p).join(', ')} Punkte (nach Reihenfolge).</li>
     <li>Ist der Beutel leer, hat jeder noch einen Zug. Danach endet das Level, auch wenn das Brett nicht voll ist.</li>
