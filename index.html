@@ -652,27 +652,6 @@ body{background:
 .gpl .on{font-weight:700}
 .gpl .emptyseat{color:var(--muted);font-style:italic}
 .gpl small{color:var(--muted);font-weight:500}
-
-#tutBanner{position:absolute;left:50%;top:56px;transform:translateX(-50%) translateY(-8px);z-index:15;display:flex;flex-direction:column;align-items:center;
-  background:var(--walnut);color:#fbf1df;border-radius:16px;padding:8px 22px;box-shadow:0 6px 18px rgba(40,20,5,.3);opacity:0;pointer-events:none;
-  transition:opacity .3s,transform .3s;white-space:nowrap}
-#tutBanner.on{opacity:1;transform:translateX(-50%)}
-#tutBanner b{font-family:var(--serif);font-size:21px;letter-spacing:.01em}
-#tutBanner span{font-size:13.5px;opacity:.9}
-
-.scanbtn{width:100%;padding:20px}
-.or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:14px;margin:4px 0}
-.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
-.scanbox{position:relative;aspect-ratio:1;max-width:340px;margin:0 auto 12px;border-radius:18px;overflow:hidden;background:#000}
-.scanbox video{width:100%;height:100%;object-fit:cover}
-.scanframe{position:absolute;inset:16%;border:3px solid #fff;border-radius:16px;box-shadow:0 0 0 999px rgba(0,0,0,.35)}
-
-.seatlist{display:grid;gap:8px;margin:6px 0 12px}
-.seatcard{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--chip);border-radius:14px;padding:10px 12px}
-.seatcard.mine{box-shadow:0 0 0 2px var(--accent)}
-.seatcard .sc-t{display:flex;flex-direction:column;min-width:0}
-.seatcard small{color:var(--muted);font-size:13px}
-.seatcard em{font-style:normal;font-size:12px;font-weight:700;color:var(--accent)}
 </style>
 </head>
 <body>
@@ -689,6 +668,7 @@ body{background:
   <section id="play" class="screen center scroll hidden">
     <div class="panel">
       <h2>Beitreten</h2>
+      <p class="lead">Gib den Code ein, den dir die Person zeigt, die das Spiel erstellt hat.</p>
       <div id="playBody"></div>
       <div class="center-btns">
         <button class="linkbtn" data-act="home">Zurück</button>
@@ -1209,7 +1189,7 @@ function renderTop(){
   const el=$('#levelInfo');if(!el)return;
   if(!S.players||S.screen!=='game'){el.textContent='';return;}
   if(S.tutorial){
-    if(S.introCode){const d=L.realDoc,ids=d?d.players.filter(p=>!p.bot&&!isAway(p.id)).map(p=>p.id):[],v=L.intro||[];
+    if(S.introCode){const d=L.realDoc,ids=d?d.players.filter(p=>!p.bot).map(p=>p.id):[],v=L.intro||[];
       const yes=ids.filter(id=>v.some(x=>x.uid===id&&(x.skip||x.done))).length,me=v.find(x=>x.uid===P.uid);
       el.innerHTML=`<button class="votepill${me&&me.skip?' on':''}" data-act="voteSkip">Überspringen ${yes}/${ids.length} ✋</button>`;}
     else el.innerHTML='<button class="votepill" data-act="tutSkip">Überspringen ⏭</button>';
@@ -1220,15 +1200,7 @@ function renderTop(){
   el.innerHTML=`${S.groupName?`<span class="nm">${esc(S.groupName)}</span>`:''}<b>Level ${S.level}</b><span class="nm">${esc(lv.name)}</span><span class="prog">${solvedCount()}/${S.tafeln.length}</span>`;
   $('#bagInfo').textContent=S.lastCall!=null?`Letzte Züge: ${S.lastCall}`:`Beutel: ${S.bag.length}`;
 }
-function renderTutBanner(){
-  let el=$('#tutBanner');
-  if(!el){el=document.createElement('div');el.id='tutBanner';$('#game').appendChild(el);}
-  if(!S.tutorial){el.classList.remove('on');return;}
-  const sub=S.introCode||S.tutMode==='local'?'Danach geht’s gleich los!':'Probier es einfach aus.';
-  el.innerHTML=`<b>🎓 Tutorial</b><span>${sub}</span>`;el.classList.add('on');
-}
 function render(){
-  renderTutBanner();
   if(!S.players||S.screen!=='game')return;
   renderRacks();renderBoard();renderTop();
   $$('.coach-hl').forEach(e=>e.classList.remove('coach-hl'));
@@ -1240,7 +1212,7 @@ function render(){
 /* ================= Layout ================= */
 function layout(){
   const app=$('#app'),W=app.clientWidth,H=app.clientHeight,root=document.documentElement.style;
-  const topH=52+(S.tutorial?64:0),n=S.n||2;
+  const topH=52,n=S.n||2;
   const tm=Math.round(clamp(16,(W-170)/9,W>700?30:(n>4?20:24)));
   const stripH=(n-1)*(tm+(n>4?10:16))+6+(teamMode()?34:0);
   const tA=Math.round(clamp(32,(W-40)/8.9,54));
@@ -1473,7 +1445,7 @@ async function actEndTurn(){
   S.passes=0;fillRacks();tickLastCall();
   const lm={turn:S.turn+1,by:mover,placed,solved,faded};
   const levelOver=finishLevelIfDue(lm);
-  if(!levelOver&&!S.tutorial){S.cur=(S.cur+1)%S.n;S.exchanged=false;}
+  if(!levelOver){S.cur=(S.cur+1)%S.n;S.exchanged=false;}
   S.turn++;S.rev++;S.lastMove=lm;S.animTurn=S.turn;
   writeGame();
   await playMove(lm);
@@ -1919,8 +1891,7 @@ function placeTip(id){
   const t=document.getElementById(id);if(!t||!t.classList.contains('on')||!t._anchor)return;
   const a=t._anchor();if(!a){return;}
   const r=a.getBoundingClientRect(),w=t.offsetWidth,h=t.offsetHeight;
-  const minTop=S.tutorial?124:60;
-  const below=t.id==='tip2'?(r.bottom+h+16<innerHeight-120):(r.top-h-16<minTop),y=below?r.bottom+14:r.top-h-14,x=clamp(8,r.left+r.width/2-w/2,innerWidth-w-8);
+  const below=t.id==='tip2'?(r.bottom+h+16<innerHeight-120):(r.top-h-16<60),y=below?r.bottom+14:r.top-h-14,x=clamp(8,r.left+r.width/2-w/2,innerWidth-w-8);
   t.style.transform=`translate(${x}px,${y}px)`;t.classList.toggle('below',below);
   t.style.setProperty('--ax',clamp(16,r.left+r.width/2-x,w-16)+'px');
 }
@@ -1936,25 +1907,18 @@ function sparksAt(el){
 const TUT_MP={rows:[['🌧️','→','E'],['E']],concl:['E']};
 const TUT_MT={rows:[['🐱','→','E'],['¬','E']],concl:['¬','E']};
 const TUT_NOT={rows:[['n','🌧️','→','🎉'],['n','E']],concl:['E']};
-function tutRack(list){
-  const r=Array(8).fill(null);
-  list.forEach((it,i)=>{const o=typeof it==='string'?{s:it}:it;r[i]=Object.assign(newTile(o.s),{orange:!!o.orange,glitter:!!o.glitter});});
-  return r;
-}
-function tutBoard(kind,tpl,rack,mia){
-  clearStory();S.cur=0;
-  if(mia){S.players=[S.players[0],{id:null,name:'Mia',score:0,rack:tutRack(mia),color:COLORS[1],team:null}];S.n=2;}
-  else if(S.players.length>1){S.players=[S.players[0]];S.n=1;}
+function tutBoard(kind,tpl,rack){
+  clearStory();
   S.tafeln=[makeTafel(kind,0,0,'t0',tpl)];
-  const r=tutRack(rack);
+  const r=Array(8).fill(null);rack.forEach((sym,i)=>r[i]=Object.assign(newTile(sym),{orange:false,glitter:false}));
   S.players[0].rack=r;S.bag=[];S.fresh=new Set(r.filter(Boolean).map(t=>t.id));takeSnap();
   layout();render();
   const el=$('.tafel');if(el)el.animate([{transform:'scale(.6)',opacity:0},{transform:'scale(1.04)',opacity:1,offset:.7},{transform:'scale(1)'}],{duration:500,easing:'ease-out'});
 }
 async function runTutorialFlow(){
   const tid='t0',ring=on=>{$('#turnRing').classList.toggle('on',on);if(on)$('#turnRing rect').style.strokeDashoffset='45';};
-  const place=(r,k,sym,t,sub,ok,side,p=0)=>({t,sub,at:()=>slotEl(tid,r,k),ok,side,
-    task:()=>({target:[tid,r,k],goal:()=>slotSym(tid,r,k)===sym,wrong:tutWrong(tid,r,k,sym),hint:()=>fingerHint(p,sym,tid,r,k)})});
+  const place=(r,k,sym,t,sub,ok,side)=>({t,sub,at:()=>slotEl(tid,r,k),ok,side,
+    task:()=>({target:[tid,r,k],goal:()=>slotSym(tid,r,k)===sym,wrong:tutWrong(tid,r,k,sym),hint:()=>fingerHint(0,sym,tid,r,k)})});
   const endTurn=(ok)=>({t:'Tipp auf „Zug beenden“',at:()=>$('#dock .btn.end'),ok,okAt:()=>$('#score-0'),
     task:()=>({goal:()=>!S.busy&&!!(tafel(tid)||{}).solved,hint:async()=>{await fingerTap($('#dock .btn.end'));fingerHide();}})});
   const phases=[
@@ -1974,16 +1938,8 @@ async function runTutorialFlow(){
       place(1,1,'🌧️','… und dann 🌧️ dahinter','','Genau!'),
       place('c',0,'🎉','Was passiert jetzt?','Leg es hier unten hin','Richtig! Wir feiern 🎉'),
       endTurn('Prima!')]},
-    {noRing:true,
-     setup:()=>tutBoard('mini',{rows:[['🌧️','→','🍕'],['🌧️']],concl:['E']},['🐱','☂️','🎉'],[{s:'🍕',orange:true},'☂️','🐱','🎉']),steps:[
-      place('c',0,'🍕','Dir fehlt die Pizza 🍕!','Nimm die orange von Mia','Orange Steine darfst du dem Gegner abnehmen!',
-        {t:'Orange darfst du nehmen',at:()=>$(`.tile[data-p="1"][data-slot="${rackSlotOf(1,'🍕')}"]`)},1),
-      endTurn('Super!')]},
-    {noRing:true,
-     setup:()=>tutBoard('mini',{rows:[['🐱','→','🎉'],['E']],concl:['E']},[{s:'🐱',glitter:true},'🎉','☂️']),steps:[
-      place(1,0,'🐱','Zieh den glitzernden 🐱 hierher','Er funkelt ✨','Glitzernde Steine geben extra Punkte!'),
-      place('c',0,'🎉','Und 🎉 unten hin','','Fast geschafft!'),
-      endTurn('Plus 10 extra für den Glitzerstein!')]}
+    {steps:[{t:'Blitzrunde! Schnell!',sub:'Die Uhr läuft',at:()=>$('.tafel[data-tid="blitz"]'),blitz:true,
+      task:()=>({goal:()=>S.blitz&&S.blitz.results&&S.blitz.results.length>0})}]}
   ];
   for(const ph of phases){
     if(!S.tutorial)return;
@@ -1993,7 +1949,7 @@ async function runTutorialFlow(){
       if(st.blitz)await tutBlitzStart();
       render();showTip('tip',st.t,st.sub,st.at);
       if(st.side)showTip('tip2',st.side.t,'',st.side.at);
-      if(st===ph.steps[ph.steps.length-1]&&!st.blitz&&!ph.noRing){ring(true);showTip('tip2','Die blaue Linie ist deine Zeit','',()=>$('#turnRing'));}
+      if(st===ph.steps[ph.steps.length-1]&&!st.blitz){ring(true);showTip('tip2','Die blaue Linie ist deine Zeit','',()=>$('#turnRing'));}
       S.tutLive=true;
       const ok=await waitTask(st.task());
       S.tutLive=false;markTarget(null,null,null,false);fingerHide();hideTip('tip2');ring(false);
@@ -2034,7 +1990,7 @@ function positionCoach(){
 }
 function introVoteHTML(){
   if(!S.introCode)return'';
-  const d=L.realDoc,ids=d?d.players.filter(p=>!p.bot&&!isAway(p.id)).map(p=>p.id):[],v=L.intro||[];
+  const d=L.realDoc,ids=d?d.players.filter(p=>!p.bot).map(p=>p.id):[],v=L.intro||[];
   const yes=ids.filter(id=>v.some(x=>x.uid===id&&(x.skip||x.done))).length,me=v.find(x=>x.uid===P.uid);
   return`<div class="vote"><span>Überspringen: ${yes} von ${ids.length} dafür</span><button class="btn" data-act="voteSkip">${me&&me.skip?'Stimme zurückziehen':'Dafür stimmen'}</button></div>`;
 }
@@ -2080,7 +2036,7 @@ setInterval(tickTurn,250);
 
 // Tutorial beenden: vor einem lokalen Spiel geht es direkt ins Spiel, sonst zurück zum Start
 function endTutorial(){
-  S.tutorial=false;S.tutLive=false;fingerHide();hideTip('tip');hideTip('tip2');markTarget(null,null,null,false);renderTutBanner();
+  S.tutorial=false;S.tutLive=false;fingerHide();hideTip('tip');hideTip('tip2');markTarget(null,null,null,false);
   if(S.blitz)clearInterval(S.blitz.timer);S.blitz=null;S.blitzSpec=null;clearStory();
   $('#turnRing').classList.remove('on');
   if(S.tutMode==='local'&&S.pendingLocal){const p=S.pendingLocal;S.pendingLocal=null;startLocalGame(p.names,p.turnTime);}
@@ -2153,9 +2109,6 @@ setInterval(()=>{
   if(key!==Bt.key){Bt.key=key;Bt.at=performance.now()+2500+Math.random()*2500;Bt.running=false;}
   if(!Bt.running&&performance.now()>=Bt.at&&!modalOpen()){Bt.running=true;botTurn().catch(e=>console.warn(e));}
 },500);
-
-// Wer gerade nicht verbunden ist, hält nur seinen Platz warm und zählt bei Abstimmungen nicht mit
-function isAway(uid){return !!(typeof E!=='undefined'&&E.ev&&E.ev.away&&E.ev.away[uid]);}
 /* ================= Online sync ================= */
 let writeQ=Promise.resolve(),draftQ=Promise.resolve(),draftSent='',draftTimer=null;
 function dbErr(e){
@@ -2288,9 +2241,6 @@ async function initPlatform(){
   renderStart();
   if(S.screen==='mode')renderMode();
   if(S.screen==='play'){renderPlay();subscribeLists();}
-  // Einladungslink (QR-Code): direkt in den Beitritt, nur noch nach dem Namen fragen
-  if(L.eventInvite&&!S.inviteAsked){S.inviteAsked=true;
-    if(P.online)startJoin(L.eventInvite);else{showScreen('play');renderPlay();}}
 }
 function myName(){
   let n='';try{n=localStorage.getItem('ponens-name')||'';}catch(e){}
@@ -2305,9 +2255,14 @@ function readName(){
 function subscribeLists(){
   unsub(listSubs);
   if(!P.online)return;
-  // nur aktiv gehostete Spiele: Anmeldung offen (lobby) oder Plätze zum Wiedereinstieg (closed)
-  listSubs.push(P.db.collection('events').where('status','in',['lobby','closed']).limit(30).onSnapshot(s=>{
-    L.hosted=s.docs.map(d=>d.data()).filter(e=>e.status==='lobby'||e.status==='closed');
+  const col=P.db.collection('games');
+
+  if(P.isHost)listSubs.push(P.db.collection('events').where('adminId','==',P.uid).limit(20).onSnapshot(s=>{
+    L.events=s.docs.map(d=>d.data()).filter(e=>e.status!=='ended').sort((a,b)=>b.createdAt-a.createdAt);
+    if(S.screen==='play')renderPlayLists();
+  },snapErr));
+  listSubs.push(col.where('playerIds','array-contains',P.uid).limit(40).onSnapshot(s=>{
+    L.mine=s.docs.map(d=>d.data()).filter(g=>(g.status==='playing'||g.status==='blitz')&&g.v===5).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
     if(S.screen==='play')renderPlayLists();
   },snapErr));
 }
@@ -2321,9 +2276,12 @@ function renderPlay(){
     b.innerHTML=`<div class="note-box">${why}</div><div class="center-btns"><button class="btn primary big" data-act="local">An einem Gerät spielen</button></div>`;
     return;
   }
-  b.innerHTML=`<div id="playLists"></div>
-    <div class="or"><span>oder Code eingeben</span></div>
-    <div class="codeline"><input id="codeIn" maxlength="40" placeholder="Code" autocomplete="off" autocapitalize="characters" aria-label="Code"><button class="btn primary" data-act="joinCode">Beitreten</button></div>`;
+  const evInv=L.eventInvite?`<div class="item invite"><div class="t"><b>Du wurdest eingeladen</b><small>Code ${esc(L.eventInvite)}</small></div><button class="btn primary" data-act="joinEvent" data-code="${esc(L.eventInvite)}">Beitreten</button></div>`:'';
+  b.innerHTML=`<label class="field"><span>Dein Name</span><input id="myName" maxlength="14" autocomplete="nickname" value="${esc(myName())}"></label>
+    ${evInv}
+    <div class="codeline"><input id="codeIn" maxlength="6" placeholder="Code" autocomplete="off" autocapitalize="characters" value="${esc(L.eventInvite||'')}"><button class="btn ${evInv?'':'primary'}" data-act="joinCode">Beitreten</button></div>
+    <p class="hintline">Oder scanne den QR-Code der Spielleitung.</p>
+    <div id="playLists"></div>`;
   renderPlayLists();
 }
 function renderStart(){
@@ -2335,19 +2293,15 @@ function renderStart(){
 }
 function renderPlayLists(){
   const el=$('#playLists');if(!el)return;
-  const now=Date.now(),recent=(L.hosted||[]).filter(e=>now-(e.createdAt||0)<12*3600e3);
-  // eigenes Spiel (nur das neueste) und fremde Spiele, deren Spielleitung gerade online ist
-  const own=recent.filter(e=>e.adminId===P.uid).sort((a,b)=>b.createdAt-a.createdAt).slice(0,1);
-  const others=recent.filter(e=>e.adminId!==P.uid&&now-(e.hostHb||0)<ACTIVE_MS).sort((a,b)=>b.createdAt-a.createdAt);
-  const list=[...own,...others];
-  if(!list.length){el.innerHTML='<p class="empty" style="text-align:center">Gerade läuft kein Spiel, bei dem du mitmachen kannst.</p>';return;}
-  el.innerHTML=`<div class="list"><h3>Laufende Spiele</h3>${list.map(e=>{
-    const free=typeof warmSeats==='function'&&warmSeats(e).length;
-    const isOwn=e.adminId===P.uid;
-    return`<div class="item"><div class="t"><b>${isOwn?'Dein Spiel':'Spiel von '+esc(e.adminName||'jemandem')}</b><small>Code ${esc(e.code)}${free?' · Platz frei':''}</small></div>
-      ${isOwn?`<button class="btn" data-act="openEvent" data-code="${esc(e.code)}">Öffnen</button>`:`<button class="btn primary" data-act="hostedJoin" data-code="${esc(e.code)}">Beitreten</button>`}</div>`;}).join('')}</div>`;
+  const mine=L.mine.map(g=>{
+    const others=g.players.filter(p=>p.id!==P.uid).map(p=>p.name).join(', ');
+    const turn=g.players[g.cur]?.id===P.uid?'Du bist dran':`${g.players[g.cur]?.name||''} ist dran`;
+    return`<div class="item"><div class="t"><b>Mit ${esc(others||'dir allein')}</b><small>${esc(turn)}</small></div><button class="btn primary" data-act="resume" data-code="${esc(g.code)}">Öffnen</button></div>`;
+  }).join('');
+  const evs=(L.events||[]).map(e=>`<div class="item"><div class="t"><b>Spiel ${esc(e.code)}</b><small>${e.groups.length} Gruppen</small></div><button class="btn primary" data-act="openEvent" data-code="${esc(e.code)}">Öffnen</button></div>`).join('');
+  el.innerHTML=`${evs?`<div class="list"><h3>Von dir geleitet</h3>${evs}</div>`:''}${mine?`<div class="list"><h3>Deine laufenden Spiele</h3>${mine}</div>`:''}
+`;
 }
-setInterval(()=>{if(S.screen==='play'&&P.online)renderPlayLists();},10000);
 async function shareInvite(){
   const url=location.origin+location.pathname+'?spiel='+encodeURIComponent(L.lobby.code);
   const text='Spiel mit mir Ponens! ';
@@ -2495,7 +2449,7 @@ async function introVote(patch){
 async function checkIntro(){
   const d=L.realDoc;if(!S.introCode||!d||d.status!=='intro')return;
   const v=L.intro||[];
-  const all=d.players.filter(p=>!p.bot&&!isAway(p.id)).every(p=>v.some(x=>x.uid===p.id&&(x.skip||x.done)));
+  const all=d.players.filter(p=>!p.bot).every(p=>v.some(x=>x.uid===p.id&&(x.skip||x.done)));
   if(!all)return;
   const ref=P.db.doc('games/'+d.code);
   try{await P.db.runTransaction(async tx=>{const c=(await tx.get(ref)).data();if(!c||c.status!=='intro')return;tx.set(ref,{...c,status:'playing',rev:(c.rev||0)+1,updatedAt:Date.now()});});}
@@ -2504,13 +2458,13 @@ async function checkIntro(){
 async function introDone(){
   await introVote({done:true});
   const d=L.realDoc,v=L.intro||[];
-  const wait=d?d.players.filter(p=>!p.bot&&!isAway(p.id)&&p.id!==P.uid&&!v.some(x=>x.uid===p.id&&(x.skip||x.done))).map(p=>p.name):[];
+  const wait=d?d.players.filter(p=>!p.bot&&p.id!==P.uid&&!v.some(x=>x.uid===p.id&&(x.skip||x.done))).map(p=>p.name):[];
   if(wait.length)showModal(`<h3>Gleich geht’s los</h3><p>Warte noch auf: ${wait.map(esc).join(', ')}.</p>`,true);
   checkIntro();
 }
 async function finishIntro(){
   const d=L.realDoc;if(!S.introCode||!d)return;
-  S.introCode=null;S.tutorial=false;S.trunning=false;fingerHide();renderTutBanner();hideTip('tip');hideTip('tip2');
+  S.introCode=null;S.tutorial=false;S.trunning=false;fingerHide();hideTip('tip');hideTip('tip2');
   $('#coach').classList.add('hidden');closeModal();if(S.blitz)clearInterval(S.blitz.timer);S.blitz=null;
   deserialize(d);S.online=true;S.animTurn=d.lastMove?d.lastMove.turn:0;
   showScreen('game');layout();await deal();
@@ -2518,47 +2472,9 @@ async function finishIntro(){
   if(isMyTurn())toast('Du beginnst!','','turn',2500);else toast(`${curP().name} beginnt`,'','turn',2000);
 }
 
-/* ---------- Beitreten: Name erfragen, QR-Code scannen ---------- */
-function askName(title,next){
-  S.nameNext=next;
-  showModal(`<h3>${esc(title)}</h3><label class="field"><span>Dein Name</span><input id="nameIn" maxlength="14" autocomplete="nickname" value="${esc(myName())}"></label>
-    <div class="stack" style="margin-top:12px"><button class="btn primary" data-act="nameOk">Los geht’s</button><button class="btn" data-act="nameCancel">Abbrechen</button></div>`,true);
-  setTimeout(()=>{const i=$('#nameIn');if(i){i.focus();i.select();}},60);
-}
-function nameOk(){
-  const i=$('#nameIn'),n=(i?i.value:'').trim().slice(0,14);
-  if(!n){toast('Gib bitte deinen Namen ein.');return;}
-  try{localStorage.setItem('ponens-name',n);}catch(e){}
-  const f=S.nameNext;S.nameNext=null;closeModal();if(f)f(n);
-}
-function startJoin(code){
-  code=String(code||'').trim().toUpperCase();
-  if(code.length<4){toast('Gib den Code aus vier Buchstaben ein.');return;}
-  askName(L.eventInvite?'Du wurdest eingeladen. Wie heißt du?':'Wie heißt du?',name=>joinEvent(code,name));
-}
-function parseJoinCode(text){
-  text=String(text||'').trim();
-  try{const u=new URL(text),c=u.searchParams.get('event')||u.searchParams.get('spiel');if(c)return c.toUpperCase().slice(0,8);}catch(e){}
-  const m=text.toUpperCase().match(/^[A-Z]{4,6}$/);return m?m[0]:null;
-}
-
-/* ---------- Anwesenheit: Herzschlag ---------- */
-let HB_MS=15000,hbLast=0;
-function sendHeartbeat(){
-  if(!P.online||!E.code||(S.screen!=='event'&&S.screen!=='game')||isEvAdmin())return;
-  hbLast=Date.now();
-  const ref=P.db.doc(`events/${E.code}/people/${P.uid}`);
-  // fehlt die Karte (z. B. nach einem Verbindungsabbruch), wird sie vollständig neu angelegt
-  ref.update({hb:hbLast}).catch(()=>{ref.set({id:P.uid,name:E.myName||myName()||'Spieler',at:hbLast,hb:hbLast}).catch(()=>{});});
-}
-setInterval(()=>{if(Date.now()-hbLast>=HB_MS)sendHeartbeat();},1000);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)sendHeartbeat();});
-
 /* ================= Spielleitung: Gruppen, Bot, Nachrücken ================= */
 let GROUP_SIZE=3,GROUP_WAIT_MS=30000;     // 3 Personen starten sofort, sonst nach 30 s zu zweit bzw. gegen den Bot
-let HOST_HB_MS=30000,ACTIVE_MS=90000;     // die Spielleitung meldet sich alle 30 s, nach 90 s Stille gilt ihr Spiel als nicht mehr aktiv
-let AWAY_MS=60000,WARM_MS=600000;      // nach 60 s ohne Lebenszeichen gilt jemand als weg, sein Platz bleibt 10 min frei
-const E={code:null,ev:null,people:[],games:{},subbed:new Set(),skipped:new Set(),beat:false,working:false,again:false};
+const E={code:null,ev:null,people:[],games:{},subbed:new Set(),working:false,again:false};
 let eventSubs=[],dashSubs=[];
 const isEvAdmin=()=>!!E.ev&&E.ev.adminId===P.uid;
 async function writeEvent(patch){
@@ -2581,113 +2497,50 @@ async function createEvent(){
   const name=readName();if(!name)return;
   if(!P.isHost){toast('Spiele leiten geht nur mit Zugangscode.');return;}
   const code=makeCode();
-  try{   // Alte Spiele dieser Spielleitung aufräumen: nie gestartete löschen, sehr alte beenden
-    const old=await P.db.collection('events').where('adminId','==',P.uid).get();
-    for(const d of old.docs){const o=d.data(),started=(o.groups||[]).some(g=>g.gameCode);
-      if(o.status==='ended')continue;
-      if(!started)await P.db.doc('events/'+o.code).delete();
-      else if(Date.now()-(o.createdAt||0)>2*3600e3)await P.db.doc('events/'+o.code).update({status:'ended'});}
-  }catch(e){console.warn(e);}
-  try{await P.db.doc('events/'+code).set({code,adminId:P.uid,adminName:name,createdAt:Date.now(),hostHb:Date.now(),status:'lobby',turnTime:DEFAULT_TURN_TIME,groups:[],seq:0,merges:{},v:18});}
+  try{await P.db.doc('events/'+code).set({code,adminId:P.uid,adminName:name,createdAt:Date.now(),status:'lobby',turnTime:DEFAULT_TURN_TIME,groups:[],seq:0,merges:{},v:18});}
   catch(e){return dbErr(e);}
   openEvent(code);
 }
-// Freie (warmgehaltene) Plätze: jemand ist kürzlich rausgeflogen, seine Gruppe spielt weiter
-function warmSeats(ev){
-  const now=Date.now(),out=[];
-  Object.entries(ev.away||{}).forEach(([uid,a])=>{
-    if(now-a.since>WARM_MS)return;
-    const g=(ev.groups||[]).find(g=>g.gameCode===a.gc);if(!g||g.bot||g.merged)return;
-    out.push({uid,gc:a.gc,group:g.name,name:a.name,since:a.since});
-  });
-  return out.sort((x,y)=>(y.uid===P.uid)-(x.uid===P.uid)||x.since-y.since);
-}
-async function joinEvent(code,name){
-  if(!name)return;
+async function joinEvent(code){
+  const name=readName();if(!name)return;
   L.eventInvite=null;try{history.replaceState(null,'',location.pathname);}catch(e){}
-  let ev;
   try{
     const s=await P.db.doc('events/'+code).get();
-    if(!s.exists){toast('Zu diesem Code gibt es kein Spiel.');ACT.home();return;}
-    ev=s.data();
+    if(!s.exists){toast('Zu diesem Code gibt es kein Spiel.');return;}
+    if(s.data().status!=='lobby'){toast('Die Anmeldung für dieses Spiel ist geschlossen.');return;}
+    await P.db.doc(`events/${code}/people/${P.uid}`).set({id:P.uid,name,at:Date.now()});
   }catch(e){return dbErr(e);}
-  const mine=(ev.groups||[]).find(g=>g.gameCode&&g.members.includes(P.uid));   // eigener Platz ist noch reserviert
-  if(!mine){
-    const warm=warmSeats(ev);
-    if(warm.length){await showSeatPicker(ev,warm,name,code);return;}
-    if(ev.status!=='lobby'){toast('Die Anmeldung für dieses Spiel ist geschlossen.');ACT.home();return;}
-  }
-  await enterEvent(code,name);
-}
-async function enterEvent(code,name){
-  E.myName=name;
-  try{await P.db.doc(`events/${code}/people/${P.uid}`).set({id:P.uid,name,at:Date.now(),hb:Date.now()});}catch(e){return dbErr(e);}
   openEvent(code);
 }
-async function showSeatPicker(ev,warm,name,code){
-  S.pick={code,name,open:ev.status==='lobby'};
-  const infos=await Promise.all(warm.map(async w=>{
-    try{const s=await P.db.doc('games/'+w.gc).get(),d=s.data();
-      return{...w,level:d.level,present:d.players.filter(p=>!p.bot&&p.id!==w.uid&&!(ev.away||{})[p.id]).map(p=>p.name)};}
-    catch(e){return{...w,present:[]};}
-  }));
-  showModal(`<h3>Hier ist ein Platz frei</h3><p>Diese Gruppen spielen weiter und halten einen Platz für dich frei.</p>
-    <div class="seatlist">${infos.map(i=>`<div class="seatcard${i.uid===P.uid?' mine':''}"><div class="sc-t"><b>${esc(i.group)}</b>
-      <small>Level ${i.level||'?'}${i.present.length?' · '+i.present.map(esc).join(', '):''}</small>${i.uid===P.uid?'<em>Dein alter Platz</em>':''}</div>
-      <button class="btn primary" data-act="takeSeat" data-gc="${esc(i.gc)}" data-seat="${esc(i.uid)}">Hier mitspielen</button></div>`).join('')}</div>
-    <div class="stack">${ev.status==='lobby'?'<button class="btn" data-act="joinNew">Lieber neu einsteigen</button>':''}<button class="btn" data-act="nameCancel">Abbrechen</button></div>`,true);
-}
-async function takeSeat(gc,seatUid){
-  const pk=S.pick;if(!pk)return;
-  closeModal();
-  E.myName=pk.name;
-  try{
-    await P.db.runTransaction(async tx=>{
-      const ref=P.db.doc('games/'+gc),s=await tx.get(ref),d=s.data();
-      const i=d?d.players.findIndex(p=>p.id===seatUid):-1;
-      if(i<0||d.status==='ended')throw new Error('taken');
-      d.players[i].id=P.uid;d.players[i].name=pk.name;
-      d.playerIds=d.players.map(p=>p.id).filter(Boolean);d.rev=(d.rev||0)+1;d.updatedAt=Date.now();
-      tx.set(ref,d);
-    });
-    await P.db.doc(`events/${pk.code}/people/${P.uid}`).set({id:P.uid,name:pk.name,at:Date.now(),hb:Date.now()});
-  }catch(e){toast('Der Platz ist leider schon vergeben.','Zu spät');return;}
-  S.pick=null;openEvent(pk.code);subscribeGame(gc);
-}
 async function joinByCode(){
-  const i=$('#codeIn'),raw=i?i.value:'';
-  startJoin(parseJoinCode(raw)||raw);
+  const i=$('#codeIn'),code=(i?i.value:'').trim().toUpperCase();
+  if(code.length<4){toast('Gib den Code aus vier Buchstaben ein.');return;}
+  joinEvent(code);
 }
 function openEvent(code){
   unsub(listSubs);unsub(eventSubs);unsub(dashSubs);
-  Object.assign(E,{code,ev:null,people:[],games:{},subbed:new Set(),skipped:new Set(),beat:false,sig:null});
+  Object.assign(E,{code,ev:null,people:[],games:{},subbed:new Set()});
   showScreen('event');renderEvent();
   eventSubs.push(P.db.doc('events/'+code).onSnapshot(s=>{
     if(!s.exists){toast('Das Spiel wurde aufgelöst.');ACT.home();return;}
-    E.ev=s.data();
-    const sig=JSON.stringify({...E.ev,hostHb:0});
-    if(sig===E.sig)return;      // nur ein Lebenszeichen der Spielleitung: nichts neu zeichnen
-    E.sig=sig;onEventUpdate();
+    E.ev=s.data();onEventUpdate();
   },snapErr));
   eventSubs.push(P.db.collection(`events/${code}/people`).onSnapshot(s=>{
-    const prev=E.people.map(p=>p.id+'|'+p.name).join(',');
     E.people=s.docs.map(d=>d.data()).sort((a,b)=>a.at-b.at);
     if(isEvAdmin())autoGroups();
-    if(E.people.map(p=>p.id+'|'+p.name).join(',')!==prev)renderEventScreens();
+    renderEventScreens();
   },snapErr));
 }
 function renderEventScreens(){if(S.screen==='event')renderEvent();if(S.screen==='dash')renderDash();}
 function onEventUpdate(){
   const ev=E.ev;
   if(isEvAdmin()){
-    if(!E.beat){E.beat=true;hostBeat();}
     if(S.screen==='event')showScreen('dash');
     ev.groups.forEach(g=>{if(g.gameCode&&!E.subbed.has(g.gameCode)){E.subbed.add(g.gameCode);
       dashSubs.push(P.db.doc('games/'+g.gameCode).onSnapshot(s=>{E.games[g.gameCode]=s.exists?s.data():null;if(S.screen==='dash')renderDash();},snapErr));}});
     autoGroups();renderEventScreens();return;
   }
   // Wartet in einem Bot-Spiel auf einen Platz in einer Gruppe?
-  if(S.introCode)checkIntro();
   const m=(ev.merges||{})[P.uid];
   if(m&&S.screen==='game'&&S.code===m.from&&S.mergeTo!==m.to){S.mergeTo=m.to;watchMerge(m.to);}
   const g=ev.groups.find(g=>g.members.includes(P.uid));
@@ -2722,7 +2575,7 @@ async function autoGroups(){
   if(E.working){E.again=true;return;}
   E.working=true;
   try{
-    const ev=clone(E.ev),now=Date.now(),present=new Set(E.people.filter(p=>now-(p.hb||p.at||0)<AWAY_MS).map(p=>p.id));let ch=false,toSkip=[];
+    const ev=clone(E.ev),now=Date.now(),present=new Set(E.people.map(p=>p.id));let ch=false;
     ev.seq=ev.seq||0;
     // 1) Wer sich abgemeldet hat, verlässt seine wartende Gruppe
     ev.groups.forEach(g=>{if(!g.gameCode){const n=g.members.filter(id=>present.has(id));if(n.length!==g.members.length){g.members=n;ch=true;}}});
@@ -2731,7 +2584,7 @@ async function autoGroups(){
     if(ev.status==='lobby'){
       const assigned=new Set(ev.groups.flatMap(g=>g.members));
       E.people.forEach(p=>{
-        if(assigned.has(p.id)||!present.has(p.id))return;
+        if(assigned.has(p.id))return;
         let g=ev.groups.find(g=>!g.gameCode&&g.members.length<GROUP_SIZE);
         if(!g){ev.seq++;g={id:'g'+ev.seq,name:'Gruppe '+ev.seq,members:[]};ev.groups.push(g);}
         g.members.push(p.id);ch=true;
@@ -2762,37 +2615,7 @@ async function autoGroups(){
       if(!targets.length)break;
       merges[s.members[0]]={to:targets[0].g.gameCode,from:s.gameCode};ch=true;
     }
-    // 5) Anwesenheit: Wer lange nichts von sich hören lässt, gilt als weg. Sein Platz bleibt warm.
-    const away=clone(ev.away||{});
-    for(const g of ev.groups){
-      if(!g.gameCode||g.bot||g.merged)continue;
-      const d=E.games[g.gameCode];if(!d)continue;
-      if(d.status!=='ended'){      // Platz wurde übernommen: Mitgliederliste angleichen
-        const ids=d.players.filter(p=>!p.bot).map(p=>p.id);
-        const gone=g.members.filter(id=>!ids.includes(id)),added=ids.filter(id=>!g.members.includes(id));
-        if(gone.length&&gone.length===added.length){g.members=g.members.map(id=>gone.includes(id)?added[gone.indexOf(id)]:id);ch=true;}
-      }
-      for(const p of d.players){
-        if(p.bot)continue;
-        const pe=E.people.find(x=>x.id===p.id),last=pe?(pe.hb||pe.at||0):0;
-        const gone=d.status!=='ended'&&now-last>AWAY_MS;
-        if(gone&&!away[p.id])away[p.id]={since:now,gc:g.gameCode,name:p.name};
-        if(!gone&&away[p.id]&&away[p.id].gc===g.gameCode)delete away[p.id];
-      }
-    }
-    for(const [uid,a] of Object.entries(away)){const d=E.games[a.gc];if(!d||d.status==='ended'||!d.players.some(p=>p.id===uid))delete away[uid];}
-    if(JSON.stringify(away)!==JSON.stringify(ev.away||{})){ev.away=away;ch=true;}
-    // 6) Ist, wer am Zug ist, weg (und nicht die ganze Gruppe), wird sein Zug übersprungen. Die anderen spielen weiter.
-    for(const g of ev.groups){
-      if(!g.gameCode||g.bot||g.merged)continue;
-      const d=E.games[g.gameCode];if(!d||d.status!=='playing')continue;
-      const cp=d.players[d.cur];if(!cp||cp.bot||!away[cp.id])continue;
-      if(d.players.filter(p=>!p.bot).every(p=>away[p.id]))continue;
-      const key=g.gameCode+':'+d.turn;if(E.skipped.has(key))continue;
-      E.skipped.add(key);toSkip.push(g.gameCode);
-    }
-    if(ch)await writeEvent({groups:ev.groups,seq:ev.seq,merges,away:ev.away||{}});
-    for(const gc of toSkip)await adminSkip(gc,true);
+    if(ch)await writeEvent({groups:ev.groups,seq:ev.seq,merges});
   }finally{E.working=false;if(E.again){E.again=false;autoGroups();}}
 }
 async function startGroupNow(gid){
@@ -2872,7 +2695,7 @@ function groupInfo(g){
   }
   if(!d)return{chip:'Lädt …',cls:'',meta:'',players:[]};
   const solved=(d.tafeln||[]).filter(t=>t.solved).length,total=(d.tafeln||[]).length;
-  const players=d.players.map((p,i)=>({name:p.name,bot:p.bot,score:p.score,turn:d.status==='playing'&&i===d.cur,away:!!(ev.away||{})[p.id],
+  const players=d.players.map((p,i)=>({name:p.name,bot:p.bot,score:p.score,turn:d.status==='playing'&&i===d.cur,
     merging:(ev.merges||{})[p.id]&&((E.games[(ev.merges[p.id]||{}).to]||{}).groupName||'')}));
   if(d.status==='ended')return{chip:'Fertig',cls:'over',meta:`Endstand nach Level ${d.level}`,players,d};
   if(d.status==='intro')return{chip:'Tutorial',cls:'intro',meta:'Die Gruppe schaut das Tutorial',players,d};
@@ -2895,7 +2718,7 @@ function renderDash(){
       <button class="btn" data-act="endGroup" data-code="${esc(g.gameCode)}">Beenden</button>`;
     else if(d)btns=`<button class="btn" data-act="watchGroup" data-code="${esc(g.gameCode)}">Ansehen</button>`;
     const prog=info.total?`<div class="gprog"><i style="width:${info.solved/info.total*100}%"></i></div>`:'';
-    const pl=info.players.map(p=>`<div class="${p.empty?'emptyseat':''}${p.turn?' on':''}"><span class="turn">${p.turn?'▶':''}</span><span>${p.bot?'🤖 ':''}${esc(p.name)}${p.away?' 💤 <small>Platz frei</small>':''}${p.merging!==undefined&&p.merging!==false&&p.merging!==''?` <small>→ ${esc(p.merging)}</small>`:''}</span>${p.score!=null?`<b>${p.score}</b>`:''}</div>`).join('');
+    const pl=info.players.map(p=>`<div class="${p.empty?'emptyseat':''}${p.turn?' on':''}"><span class="turn">${p.turn?'▶':''}</span><span>${p.bot?'🤖 ':''}${esc(p.name)}${p.merging!==undefined&&p.merging!==false&&p.merging!==''?` <small>→ ${esc(p.merging)}</small>`:''}</span>${p.score!=null?`<b>${p.score}</b>`:''}</div>`).join('');
     return`<div class="gcard ${info.cls}">
       <div class="gh"><b>${esc(g.name)}</b><span class="gst">${esc(info.chip)}</span></div>
       <div class="gmeta">${info.meta}</div>${prog}
@@ -2920,11 +2743,11 @@ function renderDash(){
       <button class="linkbtn" data-act="closeEvent">Spiel auflösen</button>
       <button class="linkbtn" data-act="home">Zum Hauptmenü</button></div>`;
 }
-async function adminSkip(gc,quiet){
+async function adminSkip(gc){
   const d=clone(E.games[gc]);if(!d||d.status!=='playing')return;
   const mover=d.cur;d.passes=(d.passes||0)+1;d.cur=(d.cur+1)%d.players.length;d.turn++;d.rev++;d.exchanged=false;d.updatedAt=Date.now();
   d.lastMove={turn:d.turn,by:mover,skipped:true,placed:[],solved:[],faded:[]};
-  try{await P.db.doc('games/'+gc).set(d);if(!quiet)toast(`Der Zug von ${d.players[mover].name} wurde übersprungen.`);}catch(e){dbErr(e);}
+  try{await P.db.doc('games/'+gc).set(d);toast(`Der Zug von ${d.players[mover].name} wurde übersprungen.`);}catch(e){dbErr(e);}
 }
 async function adminEndGame(gc,quiet){
   const d=E.games[gc];if(!d||d.status==='ended')return;
@@ -2941,14 +2764,6 @@ setInterval(()=>{
   if(isEvAdmin()&&E.ev&&E.ev.status!=='ended')autoGroups();
   $$('[data-dl]').forEach(el=>{el.textContent=leftText(+el.dataset.dl-Date.now());});
 },1000);
-
-// Lebenszeichen der Spielleitung: Nur Spiele, deren Spielleitung gerade da ist, erscheinen im Beitreten-Menü
-function hostBeat(){
-  if(!isEvAdmin()||!E.ev||E.ev.status==='ended')return;
-  const t=Date.now();E.ev.hostHb=t;
-  P.db.doc('events/'+E.code).update({hostHb:t}).catch(()=>{});
-}
-setInterval(hostBeat,HOST_HB_MS);
 
 /* ================= Ereignisse ================= */
 const ACT={
@@ -2977,7 +2792,7 @@ const ACT={
   go(){const names=$$('#names input').map((i,k)=>i.value.trim()||'Spieler '+(k+1));
     S.pendingLocal={names,turnTime:S.localTime??DEFAULT_TURN_TIME};startTutorial('local');},
   tutSkip(){if(S.tutorial&&!S.introCode)endTutorial();},
-  home(){closeModal();fingerHide();hideTip('tip');hideTip('tip2');S.tutorial=false;S.introCode=null;renderTutBanner();unsub(gameSubs);unsub(listSubs);unsub(eventSubs);unsub(dashSubs);E.ev=null;if(S.blitz)clearInterval(S.blitz.timer);S.blitz=null;S.tutorial=false;S.ended=false;S.players=null;S.online=false;$('#coach').classList.add('hidden');$('#toasts').innerHTML='';showScreen('start');},
+  home(){closeModal();fingerHide();hideTip('tip');hideTip('tip2');S.tutorial=false;S.introCode=null;unsub(gameSubs);unsub(listSubs);unsub(eventSubs);unsub(dashSubs);E.ev=null;if(S.blitz)clearInterval(S.blitz.timer);S.blitz=null;S.tutorial=false;S.ended=false;S.players=null;S.online=false;$('#coach').classList.add('hidden');$('#toasts').innerHTML='';showScreen('start');},
   again(){startLocalGame(S.players.map(p=>p.name),S.turnTime);},
   tutStart(){S.tutorial=false;$('#coach').classList.add('hidden');fingerHide();ACT.home();},
   coachNext(){coachNext();},
@@ -3005,11 +2820,7 @@ const ACT={
   blitzGo(){blitzGo();},
   cancel(){if(userOK()){cancelMode();render();}},
   createEvent(){if(P.online)createEvent();},
-  nameOk(){nameOk();},
-  nameCancel(){closeModal();S.pick=null;L.eventInvite=null;if(S.screen==='event'&&!E.ev)ACT.home();},
-  hostedJoin(b){if(P.online)startJoin(b.dataset.code);},
-  takeSeat(b){takeSeat(b.dataset.gc,b.dataset.seat);},
-  joinNew(){const pk=S.pick;closeModal();if(pk)enterEvent(pk.code,pk.name);},
+  joinEvent(b){if(P.online)joinEvent(b.dataset.code);},
   joinCode(){if(P.online)joinByCode();},
   openEvent(b){openEvent(b.dataset.code);},
   shareEvent(){shareEvent();},
@@ -3045,7 +2856,7 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('contextmenu',e=>{if(e.target.closest('#board,.rack'))e.preventDefault();});
 document.addEventListener('keydown',e=>{
-  if(e.target.tagName==='INPUT'){if(e.key==='Enter'&&e.target.id==='nameIn'){nameOk();return;}if(e.key==='Enter'){if(S.screen==='setup')ACT.go();else if(S.screen==='play'&&P.online){if(e.target.id==='codeIn')joinByCode();else createGame();}}return;}
+  if(e.target.tagName==='INPUT'){if(e.key==='Enter'){if(S.screen==='setup')ACT.go();else if(S.screen==='play'&&P.online){if(e.target.id==='codeIn')joinByCode();else createGame();}}return;}
   if(e.key==='Escape'){if(!$('#modal').classList.contains('hidden')&&!$('#modal').dataset.locked)return closeModal();
     if(userOK()){S.sel=null;cancelMode();render();}}
   if(e.key==='Enter'||e.key===' '){const t=e.target.closest?.('.tile[data-p]');if(t&&userOK()){e.preventDefault();actSelect(t.dataset.p==='b'?'b':+t.dataset.p,+t.dataset.slot);}}
@@ -3053,7 +2864,7 @@ document.addEventListener('keydown',e=>{
 let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(S.screen==='game'){layout();render();}},120);});
 
 {const q=new URLSearchParams(location.search),inv=q.get('spiel'),ev=q.get('event');if(inv)L.invite=inv.toUpperCase().slice(0,8);if(ev)L.eventInvite=ev.toUpperCase().slice(0,8);}
-if(L.eventInvite){showScreen('event');renderEvent();}else showScreen('start');
+if(L.invite||L.eventInvite){showScreen('play');renderPlay();}else showScreen('start');
 renderStart();
 initPlatform();
 </script>
