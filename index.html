@@ -589,6 +589,76 @@ body{background:
 .item.invite{outline:2px solid var(--accent)}
 
 #modeBody,#playBody{display:flex;flex-direction:column;gap:12px}
+
+#finger{position:fixed;left:0;top:0;z-index:90;font-size:40px;pointer-events:none;opacity:0;margin:-6px 0 0 -14px;
+  filter:drop-shadow(0 4px 6px rgba(0,0,0,.35));transition:transform .5s cubic-bezier(.4,0,.2,1),opacity .3s}
+#finger.tap{animation:ftap .38s ease}
+#finger.hold{font-size:36px}
+@keyframes ftap{40%{margin-top:2px;font-size:34px}}
+.vote{flex-basis:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);font-size:13.5px;color:var(--muted)}
+.vote .btn{font-size:13px;padding:7px 12px}
+#coach .cbtns{flex-wrap:wrap}
+.linkbtn.small{font-size:13px;color:var(--muted)}
+.gcard.wait{opacity:.85}
+.gcard.intro{box-shadow:0 0 0 2px var(--accent),var(--shadow)}
+
+#coach{padding:14px 16px 12px}
+#coach .ct{font-size:19px;margin-bottom:4px}
+#coach .cx{font-size:15px;color:var(--muted)}
+#coach .cx.nudge{animation:shake .45s ease;color:var(--bad)}
+#coach.win{box-shadow:0 0 0 3px var(--good),0 12px 44px rgba(0,0,0,.22)}
+#coach.win .ct{color:var(--good)}
+#coach .cmini{--tA:28px;margin:8px 0 0}
+#coach .cbtns{margin-top:10px}
+.tslot.tut-target{box-shadow:0 0 0 3px var(--accent),0 0 16px 4px rgba(47,109,82,.55)!important;animation:tutPulse 1s ease-in-out infinite}
+@keyframes tutPulse{50%{transform:scale(1.1)}}
+
+.tip{position:fixed;left:0;top:0;z-index:85;max-width:min(300px,86vw);background:var(--walnut);color:#fbf1df;border-radius:14px;padding:10px 14px;
+  box-shadow:0 8px 24px rgba(40,20,5,.35);pointer-events:none;opacity:0;transition:transform .45s cubic-bezier(.3,1.3,.5,1),opacity .25s,background .25s}
+.tip.on{opacity:1}
+.tip::after{content:"";position:absolute;left:calc(var(--ax,50%) - 8px);bottom:-7px;border:8px solid transparent;border-bottom:0;border-top-color:inherit;border-top-color:var(--walnut)}
+.tip.below::after{bottom:auto;top:-7px;border-top:0;border-bottom:8px solid var(--walnut)}
+.tip.win{background:var(--good)}
+.tip.win::after{border-top-color:var(--good)}
+.tip.win.below::after{border-bottom-color:var(--good)}
+.tip-t{font-family:var(--serif);font-weight:700;font-size:17px;line-height:1.25}
+.tip-s{font-size:13.5px;opacity:.85;margin-top:2px}
+.tip-s:empty{display:none}
+.tip-s.nudge{animation:shake .45s ease;color:#ffd2c8;opacity:1}
+#tip2{background:#2d6fb5;max-width:220px}
+#tip2::after{border-top-color:#2d6fb5}
+#tip2.below::after{border-bottom-color:#2d6fb5}
+.votepill{pointer-events:auto;font:inherit;font-size:13px;font-weight:600;border:0;border-radius:999px;padding:6px 12px;background:var(--chip);color:var(--ink);cursor:pointer}
+.votepill.on{background:var(--walnut);color:#fbf1df}
+
+.tip.pop{animation:tipPop .4s cubic-bezier(.3,1.6,.5,1)}
+@keyframes tipPop{from{scale:.5;opacity:0}to{scale:1;opacity:1}}
+.tip-t{font-size:18px}
+#tip2{font-size:15px}
+#tip2 .tip-t{font-size:15px;font-family:var(--font);font-weight:600}
+
+.seats{display:grid;gap:8px}
+.seat{background:var(--card);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);font-weight:600;color:var(--muted);border:2px dashed var(--line)}
+.seat.full{color:var(--ink);border:2px solid transparent}
+.waitmsg{text-align:center;color:var(--muted);line-height:1.5;margin:6px 4px}
+.waitmsg b{color:var(--ink);font-variant-numeric:tabular-nums}
+.sumrow{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.sumchip{background:var(--chip);border-radius:999px;padding:5px 11px;font-size:13px;font-weight:600}
+.gmeta{font-size:13.5px;color:var(--muted)}
+.gmeta b{color:var(--ink);font-variant-numeric:tabular-nums}
+.gcard.slim{padding:10px 14px;gap:2px;opacity:.7}
+.gturn{font-size:13.5px;color:var(--muted)}
+.gturn b{color:var(--ink)}
+.gpl .on{font-weight:700}
+.gpl .emptyseat{color:var(--muted);font-style:italic}
+.gpl small{color:var(--muted);font-weight:500}
+
+#tutBanner{position:absolute;left:50%;top:56px;transform:translateX(-50%) translateY(-8px);z-index:15;display:flex;flex-direction:column;align-items:center;
+  background:var(--walnut);color:#fbf1df;border-radius:16px;padding:8px 22px;box-shadow:0 6px 18px rgba(40,20,5,.3);opacity:0;pointer-events:none;
+  transition:opacity .3s,transform .3s;white-space:nowrap}
+#tutBanner.on{opacity:1;transform:translateX(-50%)}
+#tutBanner b{font-family:var(--serif);font-size:21px;letter-spacing:.01em}
+#tutBanner span{font-size:13.5px;opacity:.9}
 </style>
 </head>
 <body>
@@ -598,11 +668,7 @@ body{background:
     <div class="hero" id="hero" aria-hidden="true"></div>
     <h1>Ponens</h1>
     <p class="sub">Leg Aussagen aufs Raster und zieh daraus gültige Schlüsse.</p>
-    <div class="btns">
-      <button class="btn primary big" data-act="newGame">Neues Spiel</button>
-      <button class="btn big" data-act="start">Beitreten</button>
-      <button class="linkbtn" data-act="tutorial">Tutorial ansehen</button>
-    </div>
+    <div class="btns" id="startBtns"></div>
   </section>
 
   <!-- Online: Spiel erstellen / beitreten -->
@@ -634,8 +700,8 @@ body{background:
   <!-- Neues Spiel: online oder an einem Gerät -->
   <section id="mode" class="screen center scroll hidden">
     <div class="panel">
-      <h2>Neues Spiel</h2>
-      <p class="lead">Wie wollt ihr spielen?</p>
+      <h2>Spiel leiten</h2>
+      <p class="lead">Du erstellst ein Online-Spiel für deine Gruppe.</p>
       <div id="modeBody"></div>
       <div class="center-btns"><button class="linkbtn" data-act="home">Zurück</button></div>
     </div>
@@ -653,7 +719,7 @@ body{background:
     <div class="names" id="names"></div>
     <div id="localTime"></div>
     <button class="btn primary big" data-act="go">Spiel beginnen</button>
-    <button class="linkbtn" data-act="newGame">Zurück</button>
+    <button class="linkbtn" data-act="home">Zurück</button>
   </section>
 
   <section id="game" class="screen hidden">
@@ -705,11 +771,11 @@ const EMO={
 const EMOJIS=Object.keys(EMO);
 const DEF={'→':['B',1],'∨':['B',3],'(':['O',2],')':['C',2],'¬':['N',2]};
 EMOJIS.forEach(e=>DEF[e]=['L',1]);
-const BAG_BASE={'→':22,'¬':12,'∨':6,'(':5,')':5};EMOJIS.forEach(e=>BAG_BASE[e]=10);
+const BAG_BASE={'→':22,'¬':12};EMOJIS.forEach(e=>BAG_BASE[e]=10);
 const COLORS=['#0a66d8','#1f9d55','#8e44d6','#e0457b','#e08a00','#00a0a0'];
 const TEAMS=[{name:'Füchse',icon:'🦊'},{name:'Bären',icon:'🐻'},{name:'Eulen',icon:'🦉'}];
 const MAX_PLAYERS=6;
-const MAX_NEW=4,DEFAULT_TURN_TIME=60;
+const MAX_NEW=4,DEFAULT_TURN_TIME=60,MAX_GROUP=4;
 const GLITTER_BONUS=10,CHAIN_BONUS=5,TEAM_BONUS=15,MOVES_PER_TURN=2,FADE_ROUNDS=3;
 const BLITZ_POINTS=[15,10,6,3];
 // Tafeln mit Vorgaben. 'E' = Feld für ein Emoji, 'n' = kleines Feld für ein optionales ¬,
@@ -743,11 +809,11 @@ const LEVELS=[
 const BLITZ=[{kind:'mp',sec:30},{kind:'mt',sec:35},{kind:'mp',sec:30},{kind:'mt',sec:35},{kind:'chain',sec:50},{kind:'mp',sec:30},{kind:'mt',sec:35},{kind:'chain',sec:50},{kind:'chain',sec:50}];
 const NEXT={L:'BC',N:'LO',B:'LNO',O:'LNO',C:'BC'};
 const RULES={
-  1:'Zwischen zwei Aussagen gehört ein → oder ∨.',
-  2:'→ und ∨ verbinden immer zwei Aussagen.',
+  1:'Zwischen zwei Aussagen gehört ein →.',
+  2:'Der Pfeil → verbindet immer zwei Aussagen.',
   3:'Das ¬ steht direkt vor der Aussage, die es verneint.',
-  4:'Klammern umschließen eine ganze Aussage.',
-  5:'Mehrere → oder ∨ in einer Zeile brauchen Klammern, zum Beispiel (🌧️ ∨ 🐱) → 🎉.'
+  4:'In jede Zeile gehört höchstens ein Pfeil.',
+  5:'In jede Zeile gehört höchstens ein Pfeil.'
 };
 const S={screen:'start',count:2};
 const P={db:null,uid:null,canWrite:true,ready:false,online:false};
@@ -786,7 +852,7 @@ function makeBagFor(tafeln,lvl){
   let E=0,N=0,J=0;
   tafeln.forEach(tf=>[...tf.rows,tf.concl].forEach(r=>r.types.forEach((t,i)=>{if(r.slots[i])return;if(t==='E')E++;else if(t==='n')N++;else if(t==='J')J++;})));
   const w={};EMOJIS.forEach(e=>w[e]=E*1.6/EMOJIS.length);
-  w['¬']=N*.3+E*.05+1;w['→']=J*1.4+.4;w['∨']=J*.2+(lvl>=4?.6:0);
+  w['¬']=N*.3+E*.05+1;w['→']=J*1.4+.4;
   const tot=Object.values(w).reduce((a,b)=>a+b,0),b=[];
   Object.entries(w).forEach(([s,x])=>{const c=Math.round(size*x/tot);for(let i=0;i<c;i++)b.push(newTile(s));});
   shuffle(b).forEach((t,i)=>t.orange=i%10<3);return shuffle(b);
@@ -826,7 +892,7 @@ const inBlitz=()=>S.status==='blitz'&&S.blitz;
 const blitzActive=()=>inBlitz()&&S.blitz.running&&!S.blitz.finished;
 const isMyTurn=()=>!S.ended&&S.status==='playing'&&(S.online?S.cur===meIdx():true);
 const dockIdx=()=>{const m=meIdx();return m>=0?m:S.cur;};
-const userOK=()=>S.screen==='game'&&!S.busy&&!S.tutorial&&!S.ended&&(inBlitz()?blitzActive():isMyTurn());
+const userOK=()=>S.screen==='game'&&!S.busy&&(!S.tutorial||S.tutLive)&&!S.ended&&(inBlitz()?blitzActive():isMyTurn());
 const boardTafeln=()=>inBlitz()?[S.blitz.tf]:S.tafeln;
 const tafel=id=>boardTafeln().find(t=>t.id===id);
 const rowOf=(tf,r)=>r==='c'?tf.concl:tf.rows[r];
@@ -857,7 +923,7 @@ function insertError(tf,r,k,s,kind){
   if(row.slots[k])return{msg:'Dieses Feld ist schon belegt.'};
   const ty=row.types[k];
   if(ty==='E'&&DEF[s][0]!=='L')return{msg:'In dieses Feld gehört eine Aussage, also ein Emoji.'};
-  if(ty==='J'&&DEF[s][0]!=='B')return{msg:'In dieses Feld gehört ein Junktor: → (wenn … dann) oder ∨ (oder).'};
+  if(ty==='J'&&DEF[s][0]!=='B')return{msg:'In dieses Feld gehört ein Pfeil → (wenn … dann).'};
   if(ty==='n'&&s!=='¬')return{msg:'Das kleine Feld ist nur für ein ¬ (nicht), falls du die Aussage daneben verneinen willst.'};
   // Nur direkt benachbarte Steine prüfen. Liegt dazwischen noch ein leeres Pflichtfeld
   // (Emoji oder Junktor), kommt dort später etwas hin – dann ist die Lücke kein Fehler.
@@ -948,10 +1014,10 @@ function evalTafel(tf,who){
   const prem=[];
   for(const row of premRows){
     try{prem.push(parse(entries(row).map(e=>e.tile.s)));}
-    catch(e){return e==='R5'?fail(RULES[5],'Klammern fehlen'):fail(`Eine Prämisse ist noch nicht vollständig. ${e}`,'Zeile unvollständig');}
+    catch(e){return e==='R5'?fail(RULES[5],'Zu viele Pfeile'):fail(`Eine Prämisse ist noch nicht vollständig. ${e}`,'Zeile unvollständig');}
   }
   let cf;try{cf=parse(cE.map(e=>e.tile.s));}
-  catch(e){return e==='R5'?fail(RULES[5],'Klammern fehlen'):fail(`Die Konklusion ist noch nicht vollständig. ${e}`,'Konklusion unvollständig');}
+  catch(e){return e==='R5'?fail(RULES[5],'Zu viele Pfeile'):fail(`Die Konklusion ist noch nicht vollständig. ${e}`,'Konklusion unvollständig');}
   const d=derive(prem,cf);
   if(!d)return fail('Das folgt weder per Modus Ponens noch per Modus Tollens aus den Zeilen darüber.');
   if(K.minDepth&&d.d<K.minDepth)return fail(`Diese Tafel verlangt eine Kette aus mindestens ${K.minDepth} Schritten.`,`Mind. ${K.minDepth} Schritte nötig`);
@@ -1129,12 +1195,27 @@ function renderLines(){}
 function renderTop(){
   const el=$('#levelInfo');if(!el)return;
   if(!S.players||S.screen!=='game'){el.textContent='';return;}
+  if(S.tutorial){
+    if(S.introCode){const d=L.realDoc,ids=d?d.players.filter(p=>!p.bot).map(p=>p.id):[],v=L.intro||[];
+      const yes=ids.filter(id=>v.some(x=>x.uid===id&&(x.skip||x.done))).length,me=v.find(x=>x.uid===P.uid);
+      el.innerHTML=`<button class="votepill${me&&me.skip?' on':''}" data-act="voteSkip">Überspringen ${yes}/${ids.length} ✋</button>`;}
+    else el.innerHTML='<button class="votepill" data-act="tutSkip">Überspringen ⏭</button>';
+    $('#bagInfo').textContent='';return;
+  }
   if(inBlitz()){el.innerHTML='<b>Blitzrunde</b>';$('#bagInfo').textContent='';return;}
   const lv=LEVELS[S.level-1];
   el.innerHTML=`${S.groupName?`<span class="nm">${esc(S.groupName)}</span>`:''}<b>Level ${S.level}</b><span class="nm">${esc(lv.name)}</span><span class="prog">${solvedCount()}/${S.tafeln.length}</span>`;
   $('#bagInfo').textContent=S.lastCall!=null?`Letzte Züge: ${S.lastCall}`:`Beutel: ${S.bag.length}`;
 }
+function renderTutBanner(){
+  let el=$('#tutBanner');
+  if(!el){el=document.createElement('div');el.id='tutBanner';$('#game').appendChild(el);}
+  if(!S.tutorial){el.classList.remove('on');return;}
+  const sub=S.introCode||S.tutMode==='local'?'Danach geht’s gleich los!':'Probier es einfach aus.';
+  el.innerHTML=`<b>🎓 Tutorial</b><span>${sub}</span>`;el.classList.add('on');
+}
 function render(){
+  renderTutBanner();
   if(!S.players||S.screen!=='game')return;
   renderRacks();renderBoard();renderTop();
   $$('.coach-hl').forEach(e=>e.classList.remove('coach-hl'));
@@ -1146,14 +1227,14 @@ function render(){
 /* ================= Layout ================= */
 function layout(){
   const app=$('#app'),W=app.clientWidth,H=app.clientHeight,root=document.documentElement.style;
-  const topH=52,n=S.n||2;
+  const topH=52+(S.tutorial?64:0),n=S.n||2;
   const tm=Math.round(clamp(16,(W-170)/9,W>700?30:(n>4?20:24)));
   const stripH=(n-1)*(tm+(n>4?10:16))+6+(teamMode()?34:0);
   const tA=Math.round(clamp(32,(W-40)/8.9,54));
   const dockH=tA+26+46+34;
   const avW=W-12,avH=H-topH-stripH-dockH-12;
   const list=boardTafeln();
-  const cMax=inBlitz()?66:58,cMin=Math.min(30,Math.floor(avW/9.5));
+  const cMax=S.tutorial?84:inBlitz()?66:58,cMin=Math.min(30,Math.floor(avW/9.5));
   let c=cMax;
   for(;c>cMin;c--){computeGeometry(c,list,avW);if(G.H<=avH&&G.W<=avW)break;}
   computeGeometry(c,list,avW);
@@ -1183,6 +1264,8 @@ function toast(msg,title='',kind='',ms=3800){
   setTimeout(()=>{t.classList.add('out');setTimeout(()=>t.remove(),320);},ms);
 }
 const ruleToast=e=>toast(e.msg,'Passt hier nicht');
+// Vorgelesener Schluss verschwindet, sobald ein neues Brett kommt
+function clearStory(){$$('.toast.story').forEach(t=>{t.classList.add('out');setTimeout(()=>t.remove(),320);});}
 function rowEl(tid,r){return $(`.trow[data-tid="${tid}"][data-r="${r}"]`);}
 function shakeRow(tid,r){const el=rowEl(tid,r);if(!el)return;el.classList.remove('shake');void el.offsetWidth;el.classList.add('shake');}
 function tafelCenter(tid){const el=$(`.tafel[data-tid="${tid}"]`);if(!el)return{x:innerWidth/2,y:innerHeight/2};const b=el.getBoundingClientRect();return{x:b.left+b.width/2,y:b.top+b.height/2};}
@@ -1209,7 +1292,7 @@ async function polishTafel(sv){
   }
   await sleep(450);
   const c=tafelCenter(sv.tid);
-  if(sv.story)toast(sv.story,'','story',6500);
+  if(sv.story)toast(sv.story,'','story',4500);
   await burst(c,`${esc(sv.label)}!<span>${typeof sv.total==='number'?'+'+sv.total:esc(sv.total)}</span>`);
   return c;
 }
@@ -1326,6 +1409,7 @@ function actExGo(){
 }
 // Level vorbei? Dann Teamwork-Bonus und Blitzrunde vorbereiten
 function finishLevelIfDue(lm){
+  if(S.tutorial)return false;
   const full=S.tafeln.every(t=>t.solved);
   const empty=S.lastCall!=null&&S.lastCall<=0;
   if(!full&&!empty)return false;
@@ -1413,6 +1497,7 @@ function makeBlitzSpec(level){
   return{level,kind:B.kind,sec:B.sec,rack,tpl:{rows:tpl.rows,concl:tpl.concl},id:uidT()};
 }
 function enterBlitz(){
+  clearStory();
   const sp=S.blitzSpec;if(!sp)return;
   if(S.blitz&&S.blitz.id===sp.id)return;
   const tf=makeTafel(sp.kind,0,0,'blitz',sp.tpl);
@@ -1430,8 +1515,17 @@ function enterBlitz(){
   if(S.online){
     onLiveDocs(S.liveDocs||[]);
     if(S.blitz.finished)toast('Du schaust bei dieser Blitzrunde zu.');
-    else blitzCountdown();      // auf mehreren Geräten: alle starten automatisch gleichzeitig
+    else{blitzCountdown();botBlitz();}      // auf mehreren Geräten: alle starten automatisch gleichzeitig
   }
+}
+function botBlitz(){
+  const bi=S.players.findIndex(p=>p.bot);if(bi<0||meIdx()<0)return;
+  const b=S.blitz,id=b.id,sec=b.spec.sec,lvl=b.spec.level;
+  const fail=Math.random()<.25,ms=fail?sec*1000:Math.round(sec*1000*(.45+Math.random()*.5));
+  setTimeout(()=>{
+    if(!S.blitz||S.blitz.id!==id)return;
+    P.db.doc(`games/${S.code}/live/b_bot`).set({i:bi,ok:!fail,ms,level:lvl,id}).catch(()=>{});
+  },4000+ms);
 }
 async function blitzCountdown(){
   const b=S.blitz;closeModal();
@@ -1477,6 +1571,8 @@ async function blitzDone(ok,ev){
     b.finished=true;b.mine=r;render();
     try{await P.db.doc(`games/${S.code}/live/b_${P.uid}`).set(clone(r));}catch(e){dbErr(e);}
     maybeFinalizeBlitz();
+  }else if(S.tutorial){
+    b.results.push(r);b.finished=true;render();
   }else{
     b.results.push(r);
     b.idx++;
@@ -1503,10 +1599,16 @@ function maybeFinalizeBlitz(){
   if(all)finalizeTimer=setTimeout(()=>finalizeBlitz(b.results),600);
   else if(b.finished)finalizeTimer=setTimeout(()=>finalizeBlitz(b.results),(b.spec.sec+8)*1000);
 }
-function nextLevelDoc(d,results){
+function nextLevelDoc(d,results,joiners=[]){
   const lvl=d.level+1,ranked=results.filter(r=>r.ok).sort((a,b)=>a.ms-b.ms);
   const blitz=ranked.map((r,k)=>({i:r.i,ms:r.ms,pts:BLITZ_POINTS[k]||0}));
   blitz.forEach(x=>d.players[x.i].score+=x.pts);
+  // Nachrücker aus Bot-Spielen kommen beim Levelwechsel dazu (höchstens MAX_GROUP Personen)
+  joiners.forEach(j=>{
+    if(d.players.length>=MAX_GROUP||d.players.some(p=>p.id===j.uid))return;
+    d.players.push({id:j.uid,name:j.name,score:j.score||0,rack:Array(8).fill(null),color:COLORS[d.players.length%COLORS.length],team:null});
+    d.playerIds=[...(d.playerIds||[]),j.uid];
+  });
   d.tafeln=buildLevel(lvl,d.players.length);d.bag=makeBagFor(d.tafeln,lvl);
   d.players.forEach(p=>p.rack=Array(8).fill(null));fillRacksOf(d.players,d.bag);
   Object.assign(d,{level:lvl,status:'playing',cur:(lvl-1)%d.players.length,turn:d.turn+1,rev:d.rev+1,passes:0,exchanged:false,lastCall:null,blitzSpec:null,
@@ -1516,7 +1618,8 @@ function nextLevelDoc(d,results){
 async function finalizeBlitz(results){
   const b=S.blitz;if(!b||b.finalizing)return;
   b.finalizing=true;
-  const d=nextLevelDoc(serialize(),results);
+  const joiners=S.online?(L.liveAll||[]).filter(x=>x._id.startsWith('join_')).map(x=>({uid:x.uid,name:x.name,score:x.score})):[];
+  const d=nextLevelDoc(serialize(),results,joiners);
   if(!S.online){deserialize(d);S.blitz=null;await levelIntro(d.lastMove,true);return;}
   const ref=P.db.doc('games/'+S.code);
   try{
@@ -1528,6 +1631,7 @@ async function finalizeBlitz(results){
   }catch(e){b.finalizing=false;console.warn(e);}
 }
 async function levelIntro(lm,withDeal){
+  clearStory();
   S.blitz=null;clearInterval(finalizeTimer);
   const lv=LEVELS[lm.level-1];
   const rows=(lm.blitz||[]).map((x,k)=>`<div><span>${k+1}.</span><span>${esc(S.players[x.i].name)}</span><span class="p">${secs(x.ms)}, +${x.pts}</span></div>`).join('');
@@ -1675,7 +1779,7 @@ function rulesHTML(){
   ${mini(['🌧️ → 🍕','🌧️','|','🍕'])}
   <ul>
     <li><b>Modus Ponens:</b> aus X → Y und X folgt Y. <b>Modus Tollens:</b> aus X → Y und ¬Y folgt ¬X.</li>
-    <li>Ins Holz gebrannte Steine sind <b>Vorgaben</b>. Sie zeigen, welcher Schluss gedacht ist. In jedes große Feld kommt genau ein Emoji, in die kleinen Felder davor bei Bedarf ein ¬ (nicht). Gelöst ist eine Tafel erst, wenn alle großen Felder belegt sind. Ab Level 4 sind manche Pfeile offen: Dort legst du selbst → oder ∨.</li>
+    <li>Ins Holz gebrannte Steine sind <b>Vorgaben</b>. Sie zeigen, welcher Schluss gedacht ist. In jedes große Feld kommt genau ein Emoji, in die kleinen Felder davor bei Bedarf ein ¬ (nicht). Gelöst ist eine Tafel erst, wenn alle großen Felder belegt sind. Ab Level 4 sind manche Pfeile offen: Dort legst du selbst einen Pfeil →.</li>
     <li>Gelöste Tafeln bleiben liegen. Ist das ganze Brett voll, bekommen <b>alle</b> ${TEAM_BONUS} Punkte, und nach einer <b>Blitzrunde</b> geht es ins nächste, größere Level. Danach werden die Leisten neu verteilt.</li>
     <li>In der Blitzrunde bekommen alle dieselben Steine. Wer zuerst einen gültigen Schluss legt, bekommt ${BLITZ_POINTS.map(p=>'+'+p).join(', ')} Punkte (nach Reihenfolge).</li>
     <li>Ist der Beutel leer, hat jeder noch einen Zug. Danach endet das Level, auch wenn das Brett nicht voll ist.</li>
@@ -1688,24 +1792,29 @@ function rulesHTML(){
   <ul>${EMOJIS.map(e=>`<li>${e} ${esc(EMO[e].name)}</li>`).join('')}</ul>
   <h4>Wo ein Stein passt</h4>
   <p>Hältst du einen Stein, zeigen Punkte die Felder, auf die er passt:</p>
-  <ul>${[1,2,3,4,5].map(n=>`<li>${RULES[n]}</li>`).join('')}</ul>
+  <ul>${[1,2,3,4].map(n=>`<li>${RULES[n]}</li>`).join('')}</ul>
   <div class="stack"><button class="btn primary" data-act="closeModal">Alles klar</button></div>`;
 }
 function menuHTML(){
-  if(S.tutorial)return`<h3>Tutorial</h3><div class="stack"><button class="btn primary" data-act="closeModal">Weiter ansehen</button><button class="btn" data-act="home">Tutorial verlassen</button></div>`;
-  const player=!S.online||meIdx()>=0,evAdmin=!!S.eventCode&&S.hostId===P.uid;
-  let turnBtn='';
-  if(!S.ended&&(player||evAdmin)&&S.status==='playing'){
-    if(player&&isMyTurn())turnBtn='<button class="btn" data-act="pass">Diesen Zug aussetzen</button>';
-    else if(S.online)turnBtn=`<button class="btn" data-act="skip">${esc(curP().name)} überspringen</button>`;
-  }
-  return`<h3>Pause</h3><div class="stack">
-    <button class="btn primary" data-act="closeModal">${player?'Weiterspielen':'Weiter zuschauen'}</button>
-    ${evAdmin&&E.ev&&E.ev.groups.length>1?'<button class="btn" data-act="toDash">Zur Übersicht aller Gruppen</button>':''}
-    ${turnBtn}
-    ${player&&!S.ended?'<button class="btn" data-act="finish">Spiel beenden und auswerten</button>':''}
+  if(S.tutorial)return S.introCode
+    ?`<h3>Tutorial</h3><p>Das Tutorial gehört zum Spielstart deiner Gruppe. Überspringen geht nur, wenn alle zustimmen.</p><div class="stack"><button class="btn primary" data-act="closeModal">Weiter ansehen</button></div>`
+    :`<h3>Tutorial</h3><div class="stack"><button class="btn primary" data-act="closeModal">Weiter ansehen</button><button class="btn" data-act="home">Tutorial verlassen</button></div>`;
+  const evAdmin=!!S.eventCode&&S.hostId===P.uid&&meIdx()<0;
+  if(S.online&&!evAdmin)return`<h3>Pause</h3><div class="stack">
+    <button class="btn primary" data-act="closeModal">Weiterspielen</button>
+    <button class="btn" data-act="rules">Spielregeln</button>
     <button class="btn" data-act="home">Zum Hauptmenü</button></div>
-    ${S.online?'<p style="margin-top:12px">Das Spiel läuft weiter, auch wenn du die Seite schließt. Unter „Starten“ findest du es auf diesem Gerät wieder.</p>':''}`;
+    <p style="margin-top:12px">Das Spiel läuft weiter, auch wenn du die Seite schließt. Über „Beitreten“ kommst du zurück.</p>`;
+  if(evAdmin)return`<h3>Spielleitung</h3><div class="stack">
+    <button class="btn primary" data-act="closeModal">Weiter zuschauen</button>
+    ${!S.ended&&S.status==='playing'?`<button class="btn" data-act="skip">Zug von ${esc(curP().name)} überspringen</button>`:''}
+    ${!S.ended?'<button class="btn" data-act="finish">Spiel dieser Gruppe beenden</button>':''}
+    <button class="btn" data-act="toDash">Zur Übersicht</button></div>`;
+  return`<h3>Pause</h3><div class="stack">
+    <button class="btn primary" data-act="closeModal">Weiterspielen</button>
+    ${!S.ended&&S.status==='playing'?'<button class="btn" data-act="pass">Diesen Zug aussetzen</button>':''}
+    ${!S.ended?'<button class="btn" data-act="finish">Spiel beenden und auswerten</button>':''}
+    <button class="btn" data-act="home">Zum Hauptmenü</button></div>`;
 }
 function renderNames(){
   const old=$$('#names input').map(i=>i.value);
@@ -1724,85 +1833,192 @@ function playHero(){
 }
 
 /* ================= Tutorial ================= */
+// Ein Finger zeigt, wo getippt und gezogen wird
+function finger(){let f=$('#finger');if(!f){f=document.createElement('div');f.id='finger';f.innerHTML='👆';document.body.appendChild(f);}return f;}
+function fingerAt(x,y){const f=finger();f.style.opacity='1';f.style.transform=`translate(${x}px,${y}px)`;}
+function fingerHide(){const f=$('#finger');if(f)f.style.opacity='0';}
+async function fingerMove(x,y,ms=500){const f=finger();f.style.transition=`transform ${ms}ms cubic-bezier(.4,0,.2,1),opacity .3s`;fingerAt(x,y);await sleep(ms);}
+const centerOf=el=>{const b=el.getBoundingClientRect();return{x:b.left+b.width/2,y:b.top+b.height/2};};
+async function fingerTap(el){
+  if(!el)return;const c=centerOf(el);await fingerMove(c.x,c.y+6,550);
+  const f=finger();f.classList.remove('tap');void f.offsetWidth;f.classList.add('tap');await sleep(380);
+}
 async function demoDrag(p,slot,tid,r,k){
   const el=$(`.tile[data-p="${p}"][data-slot="${slot}"]`),a=el.getBoundingClientRect();
-  const t=rackOf(p)[slot];
+  const t=rackOf(p)[slot],from={x:a.left+a.width/2,y:a.top+a.height/2};
+  await fingerMove(from.x,from.y+6,600);
+  const f=finger();f.classList.add('hold');await sleep(250);
   const d={src:{kind:'rack',p,slot},info:{tile:t,from:p,slot},started:false};
   S.drag=d;startDrag(d);
   const sb=$(`.tslot[data-tid="${tid}"][data-r="${r}"][data-k="${k}"]`).getBoundingClientRect();
-  const to={x:sb.left+sb.width/2,y:sb.top+sb.height/2},from={x:a.left+a.width/2,y:a.top+a.height/2},steps=26;
+  const to={x:sb.left+sb.width/2,y:sb.top+sb.height/2},steps=34;
+  f.style.transition='opacity .3s';
   for(let i=0;i<=steps;i++){
     const q=i/steps,e=q<.5?2*q*q:1-Math.pow(-2*q+2,2)/2;
-    moveClone(d,from.x+(to.x-from.x)*e,from.y+(to.y-from.y)*e-Math.sin(q*Math.PI)*40);
-    if(i===steps-6){S.over={kind:'slot',tid,r,k};renderBoard();}
+    const x=from.x+(to.x-from.x)*e,y=from.y+(to.y-from.y)*e-Math.sin(q*Math.PI)*40;
+    moveClone(d,x,y);fingerAt(x,y+6);
+    if(i===steps-8){S.over={kind:'slot',tid,r,k};renderBoard();}
     await frame();
   }
-  await sleep(200);
+  await sleep(200);f.classList.remove('hold');
   d.clone.remove();S.drag=null;S.over=null;
   insertEntry(d.info,tid,r,k,'new');rackOf(p)[slot]=null;S.popIds.add(t.id);render();
-  await sleep(220);
+  await sleep(260);
 }
-const TUT=[
-  {t:'Darum geht’s',x:'Leg Aussagen untereinander und darunter, was <b>logisch daraus folgt</b>. Stimmt der Schluss, gibt es Punkte, und das Spiel liest ihn dir als Satz vor.',
-    mini:['🌧️ → 🍕','🌧️','|','🍕'],after:'Wenn es regnet, dann gibt es Pizza. Es regnet. Also gibt es Pizza.'},
-  {t:'Tafeln mit Vorgaben',hl:'.tafel',x:'Ins Brett sind Tafeln geschnitzt: oben die Prämissen, unter der Rille die Konklusion mit Messingrand. Eingebrannte Steine sind Vorgaben. In jedes große Feld gehört <b>ein</b> Emoji, in die kleinen Felder davor bei Bedarf ein ¬.'},
-  {t:'Steine legen',x:'Hier ist 🌧️ → ? vorgegeben. Also: 🍕 hinter den Pfeil, 🌧️ in die zweite Zeile, 🍕 als Konklusion. Punkte zeigen dir, wo ein Stein passt, ein Häkchen, ob dein Schluss gültig ist.',
-    run:async()=>{const tid=S.tafeln.find(t=>t.kind==='mp').id;
-      await demoDrag(0,0,tid,0,4);await demoDrag(0,1,tid,1,1);await demoDrag(0,2,tid,'c',1);
-      await sleep(700);S.hl='.btn.end';render();await sleep(900);S.hl=null;await actEndTurn();}},
-  {t:'Blitzrunde',x:'Ist ein Brett voll, kommt vor dem nächsten Level eine <b>Blitzrunde</b>: Alle bekommen dieselben Steine und dieselbe Tafel, und eine Uhr läuft ab. Wer am schnellsten einen gültigen Schluss legt, bekommt die meisten Punkte.',
-    run:async()=>{
-      const keep={cur:S.cur,status:S.status};
-      S.blitzSpec={level:1,kind:'mp',sec:30,id:'tut',tpl:{rows:[['n','🐱','→','n','E'],['n','E']],concl:['n','E']},
-        rack:['🎉','🌧️','🐱','¬','🎉'].map(s=>({id:uidT(),s,orange:false,glitter:false,cashed:true}))};
-      S.status='blitz';S.blitz=null;enterBlitz();await sleep(1200);
-      blitzGo();await sleep(900);
-      await demoDrag('b',0,'blitz',0,4);await demoDrag('b',2,'blitz',1,1);await demoDrag('b',4,'blitz','c',1);
-      checkBlitz();await sleep(3200);
-      clearInterval(S.blitz&&S.blitz.timer);S.blitz=null;S.blitzSpec=null;Object.assign(S,keep);layout();render();}},
-  {t:'Gemeinsam und gegeneinander',x:`<ul><li>Gelöste Tafeln bleiben liegen. Ist das <b>Brett voll</b>, bekommen alle ${TEAM_BONUS} Punkte, und es geht ins nächste, größere Level.</li><li>Dazwischen kommt eine <b>Blitzrunde</b>: alle dieselben Steine, Uhr läuft, wer zuerst schließt, gewinnt.</li><li>Jeder bekommt die Punkte seiner eigenen Steine, wer vollendet, den Bonus.</li><li>Pro Zug hast du <b>eine Minute</b> und legst höchstens <b>${MAX_NEW} neue Steine</b>.</li><li><b>Orange</b> Steine darfst du aus fremden Leisten nehmen, <b>glitzernde</b> bringen +10. Tauschen geht einmal pro Zug.</li></ul>`,final:true}
-];
-async function startTutorial(){
-  closeModal();unsub(gameSubs);S.code=null;S.blitz=null;
-  initState(['Du','Mia']);S.tutorial=true;
-  const mk=(list,orange=[],glit=[])=>list.map((s,i)=>Object.assign(newTile(s),{orange:orange.includes(i),glitter:glit.includes(i)}));
-  S.players[0].rack=mk(['🍕','🌧️','🍕','¬','🐱','☂️','→','🎉'],[3],[2]);
-  const i=S.tafeln.findIndex(t=>t.kind==='mp'),o=S.tafeln[i];
-  S.tafeln[i]=makeTafel('mp',o.band,o.pos,o.id,{rows:[['n','🌧️','→','n','E'],['n','E']],concl:['n','E']});
-  S.players[1].rack=mk(['🐱','→','🎉','☂️','🎉','(',')','🍕'],[1,7],[]);
-  S.fresh.clear();takeSnap();
-  showScreen('game');layout();
+const tutTid=()=>S.tafeln.find(t=>t.kind==='mp').id;
+const slotEl=(tid,r,k)=>$(`.tslot[data-tid="${tid}"][data-r="${r}"][data-k="${k}"]`);
+const slotSym=(tid,r,k)=>{const tf=tafel(tid),e=tf&&rowOf(tf,r).slots[k];return e?e.tile.s:null;};
+const rackSlotOf=(p,sym)=>rackOf(p).findIndex(t=>t&&t.s===sym);
+// Finger zeigt die Bewegung, ohne selbst zu legen (als Hilfe, wenn man zögert)
+async function fingerHint(p,sym,tid,r,k){
+  const ti=rackSlotOf(p,sym),te=ti>=0&&$(`.tile[data-p="${p}"][data-slot="${ti}"]`),se=slotEl(tid,r,k);
+  if(!te||!se)return;const a=centerOf(te),b=centerOf(se);
+  await fingerMove(a.x,a.y+6,500);finger().classList.add('hold');await sleep(200);
+  await fingerMove(b.x,b.y+6,900);finger().classList.remove('hold');await sleep(300);fingerHide();
+}
+function markTarget(tid,r,k,on){$$('.tut-target').forEach(e=>e.classList.remove('tut-target'));if(on){const e=slotEl(tid,r,k);if(e)e.classList.add('tut-target');}}
+// Wartet, bis die Aufgabe erledigt ist; zeigt nach kurzem Zögern den Finger
+async function waitTask(task){
+  const step=S.tstep;let idle=0;
+  while(S.tutorial&&S.tstep===step){
+    if(task.target)markTarget(...task.target,true);
+    placeTip('tip');placeTip('tip2');
+    if(task.wrong&&task.wrong())continue;
+    if(task.goal())return true;
+    await sleep(200);idle+=200;
+    if(task.hint&&idle>=3200&&!S.drag&&!S.sel){idle=0;await task.hint();}
+  }
+  return false;
+}
+function tutWrong(tid,r,k,want){
+  return()=>{const tf=tafel(tid),e=rowOf(tf,r).slots[k];
+    if(e&&e.tent&&e.tile.s!==want){rowOf(tf,r).slots[k]=null;returnToRack(e.from,e.slot,e.tile);render();coachSay(`Fast! Nimm ${want}.`);return true;}
+    return false;};
+}
+function coachSay(t){const x=$('#tip .tip-s');if(x){x.textContent=t;x.classList.remove('nudge');void x.offsetWidth;x.classList.add('nudge');}}
+/* Sprechblasen direkt am Brett */
+function tipEl(id){let t=document.getElementById(id);if(!t){t=document.createElement('div');t.id=id;t.className='tip';t.innerHTML='<div class="tip-t"></div><div class="tip-s"></div>';document.body.appendChild(t);}return t;}
+function showTip(id,title,sub,anchor,win){
+  const t=tipEl(id);t.classList.toggle('win',!!win);$('.tip-t',t).innerHTML=title;$('.tip-s',t).innerHTML=sub||'';
+  t._anchor=anchor;t.classList.add('on');t.classList.remove('pop');void t.offsetWidth;t.classList.add('pop');placeTip(id);
+}
+function placeTip(id){
+  const t=document.getElementById(id);if(!t||!t.classList.contains('on')||!t._anchor)return;
+  const a=t._anchor();if(!a){return;}
+  const r=a.getBoundingClientRect(),w=t.offsetWidth,h=t.offsetHeight;
+  const minTop=S.tutorial?124:60;
+  const below=t.id==='tip2'?(r.bottom+h+16<innerHeight-120):(r.top-h-16<minTop),y=below?r.bottom+14:r.top-h-14,x=clamp(8,r.left+r.width/2-w/2,innerWidth-w-8);
+  t.style.transform=`translate(${x}px,${y}px)`;t.classList.toggle('below',below);
+  t.style.setProperty('--ax',clamp(16,r.left+r.width/2-x,w-16)+'px');
+}
+function hideTip(id){const t=document.getElementById(id);if(t)t.classList.remove('on');}
+function sparksAt(el){
+  const p=el?centerOf(el):{x:innerWidth/2,y:innerHeight/2};
+  for(let i=0;i<10;i++){const s=document.createElement('div');s.className='spark';s.textContent='✦';s.style.left=p.x+'px';s.style.top=p.y+'px';$('#fx').appendChild(s);
+    const a=Math.random()*Math.PI*2,d=30+Math.random()*50;
+    s.animate([{transform:'translate(-50%,-50%) scale(0)',opacity:1},{transform:`translate(calc(-50% + ${Math.cos(a)*d}px),calc(-50% + ${Math.sin(a)*d}px)) scale(1.2)`,opacity:0}],{duration:800,easing:'ease-out',fill:'both'}).onfinish=()=>s.remove();}
+  navigator.vibrate?.(20);
+}
+// Mitmach-Tutorial für Kinder: erst nur Modus Ponens, dann nur Modus Tollens, dann eine Blitzrunde
+const TUT_MP={rows:[['🌧️','→','E'],['E']],concl:['E']};
+const TUT_MT={rows:[['🐱','→','E'],['¬','E']],concl:['¬','E']};
+const TUT_NOT={rows:[['n','🌧️','→','🎉'],['n','E']],concl:['E']};
+function tutBoard(kind,tpl,rack){
+  clearStory();
+  S.tafeln=[makeTafel(kind,0,0,'t0',tpl)];
+  const r=Array(8).fill(null);rack.forEach((sym,i)=>r[i]=Object.assign(newTile(sym),{orange:false,glitter:false}));
+  S.players[0].rack=r;S.bag=[];S.fresh=new Set(r.filter(Boolean).map(t=>t.id));takeSnap();
+  layout();render();
+  const el=$('.tafel');if(el)el.animate([{transform:'scale(.6)',opacity:0},{transform:'scale(1.04)',opacity:1,offset:.7},{transform:'scale(1)'}],{duration:500,easing:'ease-out'});
+}
+async function runTutorialFlow(){
+  const tid='t0',ring=on=>{$('#turnRing').classList.toggle('on',on);if(on)$('#turnRing rect').style.strokeDashoffset='45';};
+  const place=(r,k,sym,t,sub,ok,side)=>({t,sub,at:()=>slotEl(tid,r,k),ok,side,
+    task:()=>({target:[tid,r,k],goal:()=>slotSym(tid,r,k)===sym,wrong:tutWrong(tid,r,k,sym),hint:()=>fingerHint(0,sym,tid,r,k)})});
+  const endTurn=(ok)=>({t:'Tipp auf „Zug beenden“',at:()=>$('#dock .btn.end'),ok,okAt:()=>$('#score-0'),
+    task:()=>({goal:()=>!S.busy&&!!(tafel(tid)||{}).solved,hint:async()=>{await fingerTap($('#dock .btn.end'));fingerHide();}})});
+  const phases=[
+    {setup:()=>tutBoard('mini',TUT_MP,['🍕','🌧️','🍕','🐱']),steps:[
+      place(0,2,'🍕','Zieh die Pizza 🍕 hierher','','Super!',{t:'Wenn es regnet …',at:()=>slotEl(tid,0,0)}),
+      place(1,0,'🌧️','Es regnet! Zieh 🌧️ hierher','','Klasse!'),
+      place('c',0,'🍕','Was gibt es jetzt?','Leg es hier unten hin','Richtig! Es gibt Pizza 🍕'),
+      endTurn('Punkte für dich!')]},
+    {setup:()=>tutBoard('mt',TUT_MT,['🎉','🐱','🎉','🍕']),steps:[
+      place(0,2,'🎉','Zieh die Party 🎉 hierher','','Super!',{t:'Wenn die Katze schnurrt …',at:()=>slotEl(tid,0,0)}),
+      place(1,1,'🎉','Wir feiern NICHT. Leg 🎉 hierher','','Genau!',{t:'¬ heißt „nicht“',at:()=>slotEl(tid,1,0)}),
+      place('c',1,'🐱','Was heißt das für die Katze?','Leg sie hier unten hin','Richtig! Die Katze schnurrt nicht 🐱'),
+      endTurn('Stark!')]},
+    {setup:()=>tutBoard('mp',TUT_NOT,['¬','🌧️','¬','🎉']),steps:[
+      place(0,0,'¬','Leg das ¬ vor den Regen','Kleine Felder sind für ¬ (nicht)','Jetzt heißt es: Wenn es NICHT regnet, feiern wir!'),
+      place(1,0,'¬','Es regnet nicht! Leg erst das ¬ hierher','','Gut!'),
+      place(1,1,'🌧️','… und dann 🌧️ dahinter','','Genau!'),
+      place('c',0,'🎉','Was passiert jetzt?','Leg es hier unten hin','Richtig! Wir feiern 🎉'),
+      endTurn('Prima!')]},
+    {steps:[{t:'Blitzrunde! Schnell!',sub:'Die Uhr läuft',at:()=>$('.tafel[data-tid="blitz"]'),blitz:true,
+      task:()=>({goal:()=>S.blitz&&S.blitz.results&&S.blitz.results.length>0})}]}
+  ];
+  for(const ph of phases){
+    if(!S.tutorial)return;
+    if(ph.setup){ph.setup();await sleep(600);}
+    for(const st of ph.steps){
+      if(!S.tutorial)return;
+      if(st.blitz)await tutBlitzStart();
+      render();showTip('tip',st.t,st.sub,st.at);
+      if(st.side)showTip('tip2',st.side.t,'',st.side.at);
+      if(st===ph.steps[ph.steps.length-1]&&!st.blitz){ring(true);showTip('tip2','Die blaue Linie ist deine Zeit','',()=>$('#turnRing'));}
+      S.tutLive=true;
+      const ok=await waitTask(st.task());
+      S.tutLive=false;markTarget(null,null,null,false);fingerHide();hideTip('tip2');ring(false);
+      if(st.blitz){await sleep(1500);tutBlitzEnd();}
+      if(!ok||!S.tutorial)return;
+      const okText=st.blitz?(S.lastBlitzMs?`Geschafft in ${secs(S.lastBlitzMs)}!`:'Zeit um! Im Spiel klappt’s.'):st.ok;
+      const anchor=(st.okAt&&st.okAt())?st.okAt:st.at;
+      showTip('tip','✓ '+okText,'',anchor,true);sparksAt(anchor());
+      await sleep(1400);
+    }
+  }
+  hideTip('tip');
+  if(S.introCode){showTip('tip','Bereit!','Gleich geht’s los …',()=>$('#boardCard'),true);introDone();return;}
+  await burst({x:innerWidth/2,y:innerHeight/2},'Du hast es<span>geschafft!</span>',900);
+  if(S.tutorial)endTutorial();
+}
+function renderCoachBtns(){renderTop();}
+async function startTutorial(mode='solo'){
+  S.tutMode=mode;
+  closeModal();if(mode!=='group'){unsub(gameSubs);S.code=null;S.introCode=null;}
+  S.blitz=null;
+  initState(['Du']);S.tutorial=true;S.turnTime=0;
+  S.tafeln=[makeTafel('mini',0,0,'t0',TUT_MP)];
+  S.players[0].rack=Array(8).fill(null);
+  ['🍕','🌧️','🍕','🐱'].forEach((sym,i)=>S.players[0].rack[i]=Object.assign(newTile(sym),{orange:false,glitter:false}));
+  S.bag=[];S.fresh.clear();takeSnap();
+  showScreen('game');layout();$('#turnRing').classList.remove('on');$('#coach').classList.add('hidden');
   await deal();
-  S.tstep=-1;S.trunning=false;coachNext();
+  runTutorialFlow();
 }
 function positionCoach(){
   const c=$('#coach');if(!c||!S.tutorial)return;
   const W=$('#app').clientWidth,H=$('#app').clientHeight,bh=$('#boardHolder').getBoundingClientRect();
   const side=W-bh.right;
   c.style.left=c.style.top=c.style.bottom='';c.style.width='';
-  if(side>=320){const w=Math.min(380,side-32);c.style.width=w+'px';c.style.left=(bh.right+(side-w)/2)+'px';c.style.top=(H/2-140)+'px';}
-  else{const w=Math.min(380,W-24);c.style.left=Math.max(12,(W-w)/2)+'px';c.style.bottom='12px';}
+  if(side>=320){const w=Math.min(380,side-32);c.style.width=w+'px';c.style.left=(bh.right+(side-w)/2)+'px';c.style.top=(H/2-160)+'px';}
+  else{const w=Math.min(380,W-24);c.style.left=Math.max(12,(W-w)/2)+'px';c.style.top='58px';}
 }
-async function coachNext(){
-  if(S.trunning)return;
-  S.tstep++;const st=TUT[S.tstep];if(!st)return;
-  const c=$('#coach');
-  $('.ct',c).textContent=st.t;$('.cx',c).innerHTML=st.x;
-  $('.cmini',c).innerHTML=st.mini?mini(st.mini)+(st.after?`<p class="story">${esc(st.after)}</p>`:''):'';$('.cmini',c).style.display=st.mini?'':'none';
-  const dots=`<span class="cstep">${TUT.map((_,i)=>`<i class="${i<=S.tstep?'on':''}"></i>`).join('')}</span>`;
-  $('.cbtns',c).innerHTML=st.final
-    ?`${dots}<button class="btn" data-act="home">Hauptmenü</button><button class="btn primary" data-act="tutStart">Spiel starten</button>`
-    :`${dots}<button class="btn" data-act="coachSkip">Überspringen</button><button class="btn primary" data-act="coachNext">Weiter</button>`;
-  c.classList.remove('hidden','anim');void c.offsetWidth;c.classList.add('anim');
-  positionCoach();
-  S.hl=st.hl||null;render();
-  if(st.run){
-    S.trunning=true;const nb=$('[data-act="coachNext"]',c);if(nb)nb.disabled=true;
-    c.classList.add('dim');
-    await st.run();
-    c.classList.remove('dim');
-    S.trunning=false;if(nb)nb.disabled=false;S.hl=null;render();
-  }
+function introVoteHTML(){
+  if(!S.introCode)return'';
+  const d=L.realDoc,ids=d?d.players.filter(p=>!p.bot).map(p=>p.id):[],v=L.intro||[];
+  const yes=ids.filter(id=>v.some(x=>x.uid===id&&(x.skip||x.done))).length,me=v.find(x=>x.uid===P.uid);
+  return`<div class="vote"><span>Überspringen: ${yes} von ${ids.length} dafür</span><button class="btn" data-act="voteSkip">${me&&me.skip?'Stimme zurückziehen':'Dafür stimmen'}</button></div>`;
+}
+async function tutBlitzStart(){
+  S.tutKeep={cur:S.cur,status:S.status};
+  S.blitzSpec={level:1,kind:'mp',sec:30,id:'tut',tpl:{rows:[['n','🐱','→','n','E'],['n','E']],concl:['n','E']},
+    rack:['🎉','🌧️','🐱','¬','🎉'].map(s=>({id:uidT(),s,orange:false,glitter:false,cashed:true}))};
+  S.status='blitz';S.blitz=null;enterBlitz();await sleep(400);blitzGo();
+}
+function tutBlitzEnd(){
+  if(S.blitz){const r=S.blitz.results[0]||{};S.lastBlitzMs=r.ok?r.ms:0;clearInterval(S.blitz.timer);}
+  S.blitz=null;S.blitzSpec=null;Object.assign(S,S.tutKeep||{});layout();render();
 }
 
 /* ================= Zugzeit ================= */
@@ -1812,7 +2028,8 @@ function turnLeftMs(){if(!S.turnTime||T.key===null)return(S.turnTime||0)*1000;re
 function turnLeftText(){return Math.ceil(turnLeftMs()/1000)+' s';}
 function tickTurn(){
   const now=performance.now(),dt=now-(T.last||now);T.last=now;
-  if(S.screen!=='game'||!S.players||S.tutorial||S.ended||S.status!=='playing'||!S.turnTime){T.key=null;$('#turnRing').classList.remove('on');return;}
+  if(S.tutorial)return;
+  if(S.screen!=='game'||!S.players||S.ended||S.status!=='playing'||!S.turnTime){T.key=null;$('#turnRing').classList.remove('on');return;}
   if(S.busy)return;
   const key=`${S.code}|${S.turn}|${S.cur}`;
   if(key!==T.key){T.key=key;T.start=now;T.warned=false;T.firing=false;}
@@ -1833,6 +2050,81 @@ async function timeUp(){
 }
 setInterval(tickTurn,250);
 
+// Tutorial beenden: vor einem lokalen Spiel geht es direkt ins Spiel, sonst zurück zum Start
+function endTutorial(){
+  S.tutorial=false;S.tutLive=false;fingerHide();hideTip('tip');hideTip('tip2');markTarget(null,null,null,false);renderTutBanner();
+  if(S.blitz)clearInterval(S.blitz.timer);S.blitz=null;S.blitzSpec=null;clearStory();
+  $('#turnRing').classList.remove('on');
+  if(S.tutMode==='local'&&S.pendingLocal){const p=S.pendingLocal;S.pendingLocal=null;startLocalGame(p.names,p.turnTime);}
+  else ACT.home();
+}
+
+/* ================= Bot ================= */
+// Der Bot läuft auf dem Gerät der einzigen Person im Spiel. Er ist bewusst etwas schwächer.
+const Bt={key:null,at:0,running:false};
+function botHere(){return S.screen==='game'&&S.online&&!S.tutorial&&!S.ended&&S.status==='playing'&&!S.busy&&!!S.players&&curP().bot&&meIdx()>=0;}
+function botSolve(tf,free,rack){
+  const used=new Set(),chosen=[];
+  const rec=i=>{
+    if(i===free.length)return evalTafel(tf,S.cur).ok;
+    const f=free[i];
+    for(let j=0;j<rack.length;j++){
+      const t=rack[j];if(!t||used.has(j))continue;
+      if(!(f.ty==='E'?DEF[t.s][0]==='L':t.s==='→'))continue;
+      rowOf(tf,f.r).slots[f.k]={tile:t,by:S.cur,tent:true,from:S.cur,slot:j};used.add(j);chosen[i]={ri:j,k:f.k,r:f.r};
+      if(rec(i+1))return true;
+      rowOf(tf,f.r).slots[f.k]=null;used.delete(j);
+    }
+    return false;
+  };
+  const ok=rec(0);
+  if(ok)free.forEach(f=>{rowOf(tf,f.r).slots[f.k]=null;});
+  return ok?chosen.map(c=>({...c})):null;
+}
+function botFindMove(bi){
+  const rack=S.players[bi].rack,cands=[];
+  for(const tf of S.tafeln){
+    if(tf.solved||tf.concl.locked)continue;
+    const free=[];
+    [...tf.rows,tf.concl].forEach((row,ri)=>row.types.forEach((ty,k)=>{
+      if((ty==='E'||ty==='J')&&!row.slots[k])free.push({r:ri===tf.rows.length?'c':ri,k,ty});}));
+    if(!free.length||free.length>MAX_NEW)continue;
+    const plan=botSolve(tf,free,rack);
+    if(plan)cands.push({tid:tf.id,plan,n:free.length});
+  }
+  if(!cands.length)return null;
+  cands.sort((a,b)=>a.n-b.n);
+  if(Math.random()<.25&&cands.length>1)cands.shift();   // übersieht manchmal die leichteste Tafel
+  if(Math.random()<.12)return null;                      // oder zögert
+  return cands[0].plan.map(p=>({...p,tid:cands[0].tid}));
+}
+function botExchange(bi){
+  const rack=S.players[bi].rack,idx=shuffle(rack.map((t,i)=>t?i:-1).filter(i=>i>=0)).slice(0,3);
+  const out=idx.map(i=>rack[i]);
+  idx.forEach(i=>{rack[i]=S.bag.pop();});
+  S.bag.push(...out);shuffle(S.bag);
+  S.exchanged=true;S.rev++;takeSnap();render();writeGame();
+  toast(`${S.players[bi].name} tauscht 3 Steine.`);
+}
+async function botTurn(){
+  const bi=S.cur,rack=S.players[bi].rack;
+  let mv=botFindMove(bi);
+  if(!mv&&!S.exchanged&&S.bag.length>=3){botExchange(bi);await sleep(1500);mv=botFindMove(bi);}
+  if(!mv){await passTurn();return;}
+  for(const m of mv){
+    const e=insertEntry({tile:rack[m.ri],from:bi,slot:m.ri},m.tid,m.r,m.k,'new');
+    if(e){actUndo();await passTurn();return;}
+    S.popIds.add(rack[m.ri].id);rack[m.ri]=null;render();await sleep(600);
+  }
+  await sleep(500);
+  await actEndTurn();
+}
+setInterval(()=>{
+  if(!botHere()){Bt.key=null;return;}
+  const key=`${S.code}|${S.turn}|${S.cur}`;
+  if(key!==Bt.key){Bt.key=key;Bt.at=performance.now()+2500+Math.random()*2500;Bt.running=false;}
+  if(!Bt.running&&performance.now()>=Bt.at&&!modalOpen()){Bt.running=true;botTurn().catch(e=>console.warn(e));}
+},500);
 /* ================= Online sync ================= */
 let writeQ=Promise.resolve(),draftQ=Promise.resolve(),draftSent='',draftTimer=null;
 function dbErr(e){
@@ -1844,7 +2136,7 @@ function dbErr(e){
 function writeGame(){
   if(!S.online||S.tutorial)return Promise.resolve();
   const data=serialize(),ref=P.db.doc('games/'+S.code);
-  writeQ=writeQ.then(()=>ref.set(data)).catch(async e=>{
+  writeQ=writeQ.then(()=>ref.set(data)).then(()=>{if(S.mergeTo)writeJoin();}).catch(async e=>{
     if(e&&e.code==='unavailable'){await sleep(400+Math.random()*600);return ref.set(data).catch(dbErr);}
     dbErr(e);
   });
@@ -1871,8 +2163,10 @@ function subscribeGame(code){
   gameSubs.push(P.db.doc('games/'+code).onSnapshot(s=>{q=q.then(()=>onGameSnap(s)).catch(e=>console.error(e));},snapErr));
   gameSubs.push(P.db.collection(`games/${code}/live`).onSnapshot(s=>{
     const docs=s.docs.map(d=>Object.assign(clone(d.data()),{_id:d.id}));
+    L.liveAll=docs;
     const dr=docs.find(x=>x._id==='draft');S.draft=dr||null;
     onLiveDocs(docs.filter(x=>x._id.startsWith('b_')));
+    L.intro=docs.filter(x=>x._id.startsWith('intro_'));if(S.introCode){renderCoachBtns();checkIntro();}
     if(S.screen==='game'&&!S.busy&&activeDraft()){renderRacks();renderBoard();}
   },snapErr));
 }
@@ -1886,12 +2180,13 @@ async function onGameSnap(snap){
   const d=snap.data();
   if(d.status==='lobby'){L.lobby=d;if(S.screen==='lobby')renderLobby();return;}
   if(d.status==='closed'){if(S.screen==='lobby'){goPlay();toast('Das Spiel wurde aufgelöst.');}return;}
+  if(S.introCode&&S.introCode===d.code){L.realDoc=d;if(d.status!=='intro')finishIntro();else renderCoachBtns();return;}
   if(d.v!==5){toast('Dieses Spiel stammt aus einer älteren Version und lässt sich nicht mehr öffnen.');if(S.screen==='lobby')goPlay();return;}
   if(S.screen==='lobby'||S.screen==='event')return enterGame(d,true);
   if(S.screen!=='game'||!S.online||S.code!==d.code)return;
   if((d.rev||0)<=(S.rev||0))return;
   const wasEnded=S.ended;
-  deserialize(d);S.online=true;
+  deserialize(d);S.online=true;if(S.mergeTo)writeJoin();
   const lm=d.lastMove;
   if(lm&&lm.turn!==S.animTurn){
     S.animTurn=lm.turn;
@@ -1910,11 +2205,13 @@ async function onGameSnap(snap){
 }
 async function enterGame(d,withDeal){
   unsub(listSubs);
+  if(d.status==='intro'&&d.players.some(p=>p.id===P.uid)){S.introCode=d.code;S.code=d.code;L.realDoc=d;L.intro=[];return startTutorial('group');}
   deserialize(d);S.online=true;S.tutorial=false;S.animTurn=d.lastMove?d.lastMove.turn:0;S.blitz=null;
   showScreen('game');layout();
   if(withDeal)await deal();else{$('#boardHolder').classList.remove('pre');render();}
   if(S.ended)return endGame();
   if(S.status==='blitz'){enterBlitz();onLiveDocs(S.liveDocs||[]);return;}
+  if(S.status==='intro'){toast('Die Gruppe schaut gerade das Tutorial.','','turn',2500);return;}
   if(isMyTurn())toast(S.turn===1?'Du beginnst. Zieh einen Stein auf ein Feld.':'Du bist dran!','','turn',2600);
   else if(meIdx()<0)toast('Du schaust bei diesem Spiel zu.','','turn',2600);
   else toast(`${curP().name} ist dran`,'','turn',2000);
@@ -1955,7 +2252,9 @@ async function initPlatform(){
         :'net';
     }
   }
+  if(P.online)await checkHost();
   P.ready=true;
+  renderStart();
   if(S.screen==='mode')renderMode();
   if(S.screen==='play'){renderPlay();subscribeLists();}
 }
@@ -1974,7 +2273,7 @@ function subscribeLists(){
   if(!P.online)return;
   const col=P.db.collection('games');
 
-  listSubs.push(P.db.collection('events').where('adminId','==',P.uid).limit(20).onSnapshot(s=>{
+  if(P.isHost)listSubs.push(P.db.collection('events').where('adminId','==',P.uid).limit(20).onSnapshot(s=>{
     L.events=s.docs.map(d=>d.data()).filter(e=>e.status!=='ended').sort((a,b)=>b.createdAt-a.createdAt);
     if(S.screen==='play')renderPlayLists();
   },snapErr));
@@ -1988,28 +2287,25 @@ function renderPlay(){
   const b=$('#playBody');
   if(!P.ready){b.innerHTML='<p class="empty" style="text-align:center">Verbinde…</p>';return;}
   if(!P.online){
-    const why={
-      file:'Du hast die Datei direkt vom Computer geöffnet. Öffne das Spiel über deinen GitHub-Link, dann klappt die Verbindung.',
-      missing:'Du siehst gerade eine Vorschau ohne Datenbank. Online-Spiele gehen nur über deinen GitHub-Link, und dort muss firebase-config.js direkt neben index.html liegen. Hier kannst du auf einem Gerät spielen oder das Tutorial ansehen.',
-      config:'In firebase-config.js steht noch der Platzhalter. Füge dort den Code aus Firebase ein (Anleitung, Teil B, Schritt 4).',
-      format:'In firebase-config.js ist kein gültiger Firebase-Code. Kopiere den grauen Codeblock aus Firebase noch einmal komplett (Anleitung, Teil A, Schritt 5).',
-      sdk:'Die Datenbank-Bibliothek konnte nicht geladen werden. Prüf deine Internetverbindung und lade die Seite neu.',
-      anon:'Die anonyme Anmeldung ist in Firebase noch nicht eingeschaltet (Anleitung, Teil A, Schritt 2).',
-      nodb:'Die Firestore-Datenbank ist noch nicht angelegt (Anleitung, Teil A, Schritt 3).',
-      rules:'Die Datenbank-Regeln fehlen oder sind falsch eingefügt (Anleitung, Teil A, Schritt 4).',
-      net:'Gerade keine Verbindung zur Datenbank. Prüf das Internet und lade die Seite neu.'}[P.reason]||'Gerade keine Verbindung zur Datenbank.';
-    b.innerHTML=`<div class="note-box">${why}</div>
-      <div class="center-btns"><button class="btn primary big" data-act="local">Alle an einem Gerät spielen</button></div>`;
+    const why={file:'Du siehst gerade eine Vorschau. Beitreten geht nur über den Link oder QR-Code eines laufenden Spiels.',missing:'Du siehst gerade eine Vorschau ohne Datenbank. Beitreten geht nur über den Link oder QR-Code eines laufenden Spiels.',
+      config:'Dieses Spiel ist noch mit keiner Datenbank verbunden.',anon:'Die anonyme Anmeldung ist in Firebase noch nicht eingeschaltet.',rules:'Die Datenbank-Regeln fehlen.',nodb:'Die Datenbank ist noch nicht angelegt.'}[P.reason]||'Gerade keine Verbindung. Prüf das Internet und lade neu.';
+    b.innerHTML=`<div class="note-box">${why}</div><div class="center-btns"><button class="btn primary big" data-act="local">An einem Gerät spielen</button></div>`;
     return;
   }
-  const inv=L.invite?`<div class="item invite"><div class="t"><b>Du wurdest zu einem Spiel eingeladen</b><small>Code ${esc(L.invite)}</small></div><button class="btn primary" data-act="join" data-code="${esc(L.invite)}">Beitreten</button></div>`:'';
   const evInv=L.eventInvite?`<div class="item invite"><div class="t"><b>Du wurdest eingeladen</b><small>Code ${esc(L.eventInvite)}</small></div><button class="btn primary" data-act="joinEvent" data-code="${esc(L.eventInvite)}">Beitreten</button></div>`:'';
   b.innerHTML=`<label class="field"><span>Dein Name</span><input id="myName" maxlength="14" autocomplete="nickname" value="${esc(myName())}"></label>
-    ${inv}${evInv}
-    <div class="codeline"><input id="codeIn" maxlength="6" placeholder="Code" autocomplete="off" autocapitalize="characters"><button class="btn primary" data-act="joinCode">Beitreten</button></div>
-    <p class="hintline">Oder scanne den QR-Code auf dem Gerät, auf dem das Spiel erstellt wurde.</p>
+    ${evInv}
+    <div class="codeline"><input id="codeIn" maxlength="6" placeholder="Code" autocomplete="off" autocapitalize="characters" value="${esc(L.eventInvite||'')}"><button class="btn ${evInv?'':'primary'}" data-act="joinCode">Beitreten</button></div>
+    <p class="hintline">Oder scanne den QR-Code der Spielleitung.</p>
     <div id="playLists"></div>`;
   renderPlayLists();
+}
+function renderStart(){
+  const el=$('#startBtns');if(!el)return;
+  el.innerHTML=`<button class="btn primary big" data-act="start">Beitreten</button>
+    <button class="btn big" data-act="local">An einem Gerät spielen</button>
+    <button class="btn big" data-act="lead">Spiel leiten${P.isHost?'':' 🔒'}</button>
+    <button class="linkbtn" data-act="tutorial">Tutorial ansehen</button>`;
 }
 function renderPlayLists(){
   const el=$('#playLists');if(!el)return;
@@ -2018,8 +2314,8 @@ function renderPlayLists(){
     const turn=g.players[g.cur]?.id===P.uid?'Du bist dran':`${g.players[g.cur]?.name||''} ist dran`;
     return`<div class="item"><div class="t"><b>Mit ${esc(others||'dir allein')}</b><small>${esc(turn)}</small></div><button class="btn primary" data-act="resume" data-code="${esc(g.code)}">Öffnen</button></div>`;
   }).join('');
-  const evs=(L.events||[]).map(e=>`<div class="item"><div class="t"><b>Dein Spiel ${esc(e.code)}</b><small>${e.status==='lobby'?'Warteraum ist offen':(e.groups.length>1?e.groups.length+' Gruppen spielen':'läuft')}</small></div><button class="btn primary" data-act="openEvent" data-code="${esc(e.code)}">Öffnen</button></div>`).join('');
-  el.innerHTML=`${evs?`<div class="list"><h3>Von dir erstellt</h3>${evs}</div>`:''}${mine?`<div class="list"><h3>Deine laufenden Spiele</h3>${mine}</div>`:''}
+  const evs=(L.events||[]).map(e=>`<div class="item"><div class="t"><b>Spiel ${esc(e.code)}</b><small>${e.groups.length} Gruppen</small></div><button class="btn primary" data-act="openEvent" data-code="${esc(e.code)}">Öffnen</button></div>`).join('');
+  el.innerHTML=`${evs?`<div class="list"><h3>Von dir geleitet</h3>${evs}</div>`:''}${mine?`<div class="list"><h3>Deine laufenden Spiele</h3>${mine}</div>`:''}
 `;
 }
 async function shareInvite(){
@@ -2152,28 +2448,73 @@ function showQrBig(kind,code){
 /* ---------- Neues Spiel: online oder an einem Gerät ---------- */
 function renderMode(){
   const b=$('#modeBody');if(!b)return;
-  const on=P.ready&&P.online;
-  b.innerHTML=`${on?`<label class="field"><span>Dein Name</span><input id="myName" maxlength="14" autocomplete="nickname" value="${esc(myName())}"></label>`:''}
-    <button class="choice" data-act="modeOnline" ${on?'':'disabled'}><b>🌐 Online</b><span>Jeder spielt auf seinem eigenen Gerät. Die anderen treten per QR-Code bei. Auf Wunsch in mehreren Gruppen.</span></button>
-    <button class="choice" data-act="modeLocal"><b>📱 An einem Gerät</b><span>Ihr reicht ein Handy oder Tablet nach jedem Zug weiter.</span></button>
-    ${P.ready&&!P.online?'<p class="hintline">Online geht nur über deinen GitHub-Link mit eingerichteter Datenbank.</p>':''}${P.ready?'':'<p class="hintline">Verbinde…</p>'}`;
+  if(!P.ready){b.innerHTML='<p class="hintline">Verbinde…</p>';return;}
+  b.innerHTML=`<label class="field"><span>Dein Name</span><input id="myName" maxlength="14" autocomplete="nickname" value="${esc(myName())}"></label>
+    <button class="btn primary big" data-act="modeOnline" style="width:100%">Spiel erstellen</button>
+    <p class="hintline">Du bekommst einen QR-Code. Wer ihn scannt, kommt automatisch in eine Gruppe.</p>`;
 }
 
-/* ================= Veranstaltungen: Admin teilt Gruppen ein ================= */
-const E={code:null,ev:null,people:[],sel:null,games:{},size:3};
+/* ---------- Pflicht-Tutorial der Gruppe ---------- */
+async function introVote(patch){
+  if(!S.introCode)return;
+  const me=(L.intro||[]).find(x=>x.uid===P.uid)||{uid:P.uid,skip:false,done:false};
+  const d={uid:P.uid,skip:!!me.skip,done:!!me.done,...patch};
+  try{await P.db.doc(`games/${S.introCode}/live/intro_${P.uid}`).set(d);}catch(e){dbErr(e);}
+}
+// Los geht's, sobald jedes Gruppenmitglied fertig ist oder fürs Überspringen gestimmt hat
+async function checkIntro(){
+  const d=L.realDoc;if(!S.introCode||!d||d.status!=='intro')return;
+  const v=L.intro||[];
+  const all=d.players.filter(p=>!p.bot).every(p=>v.some(x=>x.uid===p.id&&(x.skip||x.done)));
+  if(!all)return;
+  const ref=P.db.doc('games/'+d.code);
+  try{await P.db.runTransaction(async tx=>{const c=(await tx.get(ref)).data();if(!c||c.status!=='intro')return;tx.set(ref,{...c,status:'playing',rev:(c.rev||0)+1,updatedAt:Date.now()});});}
+  catch(e){console.warn(e);}
+}
+async function introDone(){
+  await introVote({done:true});
+  const d=L.realDoc,v=L.intro||[];
+  const wait=d?d.players.filter(p=>!p.bot&&p.id!==P.uid&&!v.some(x=>x.uid===p.id&&(x.skip||x.done))).map(p=>p.name):[];
+  if(wait.length)showModal(`<h3>Gleich geht’s los</h3><p>Warte noch auf: ${wait.map(esc).join(', ')}.</p>`,true);
+  checkIntro();
+}
+async function finishIntro(){
+  const d=L.realDoc;if(!S.introCode||!d)return;
+  S.introCode=null;S.tutorial=false;S.trunning=false;fingerHide();renderTutBanner();hideTip('tip');hideTip('tip2');
+  $('#coach').classList.add('hidden');closeModal();if(S.blitz)clearInterval(S.blitz.timer);S.blitz=null;
+  deserialize(d);S.online=true;S.animTurn=d.lastMove?d.lastMove.turn:0;
+  showScreen('game');layout();await deal();
+  if(S.ended)return endGame();
+  if(isMyTurn())toast('Du beginnst!','','turn',2500);else toast(`${curP().name} beginnt`,'','turn',2000);
+}
+
+/* ================= Spielleitung: Gruppen, Bot, Nachrücken ================= */
+let GROUP_SIZE=3,GROUP_WAIT_MS=30000;     // 3 Personen starten sofort, sonst nach 30 s zu zweit bzw. gegen den Bot
+const E={code:null,ev:null,people:[],games:{},subbed:new Set(),working:false,again:false};
 let eventSubs=[],dashSubs=[];
 const isEvAdmin=()=>!!E.ev&&E.ev.adminId===P.uid;
 async function writeEvent(patch){
-  const ev={...clone(E.ev),...patch};
+  const ev={...clone(E.ev),...patch};E.ev=ev;
   try{await P.db.doc('events/'+E.code).set(ev);}catch(e){dbErr(e);}
+}
+// Zugang zur Spielleitung: Der Code wird von den Firebase-Regeln geprüft
+async function checkHost(){
+  if(!P.online)return false;
+  try{const s=await P.db.doc('hosts/'+P.uid).get();P.isHost=s.exists;}catch(e){P.isHost=false;}
+  return P.isHost;
+}
+async function hostLogin(){
+  const i=$('#hostKey'),key=(i?i.value:'').trim();
+  if(!key){toast('Gib den Zugangscode ein.');return;}
+  try{await P.db.doc('hosts/'+P.uid).set({key,at:Date.now()});P.isHost=true;closeModal();renderStart();ACT.lead();}
+  catch(e){toast(e&&e.code==='permission-denied'?'Der Zugangscode stimmt nicht.':'Das hat nicht geklappt. Prüf die Verbindung.','Kein Zugang');}
 }
 async function createEvent(){
   const name=readName();if(!name)return;
+  if(!P.isHost){toast('Spiele leiten geht nur mit Zugangscode.');return;}
   const code=makeCode();
-  try{
-    await P.db.doc('events/'+code).set({code,adminId:P.uid,adminName:name,createdAt:Date.now(),status:'lobby',adminPlays:true,turnTime:DEFAULT_TURN_TIME,
-      groups:[{name:'Gruppe 1',members:[]}],v:7});
-  }catch(e){return dbErr(e);}
+  try{await P.db.doc('events/'+code).set({code,adminId:P.uid,adminName:name,createdAt:Date.now(),status:'lobby',turnTime:DEFAULT_TURN_TIME,groups:[],seq:0,merges:{},v:18});}
+  catch(e){return dbErr(e);}
   openEvent(code);
 }
 async function joinEvent(code){
@@ -2181,209 +2522,295 @@ async function joinEvent(code){
   L.eventInvite=null;try{history.replaceState(null,'',location.pathname);}catch(e){}
   try{
     const s=await P.db.doc('events/'+code).get();
-    if(!s.exists){toast('Diese Veranstaltung gibt es nicht.');return;}
-    if(s.data().adminId!==P.uid)await P.db.doc(`events/${code}/people/${P.uid}`).set({id:P.uid,name,at:Date.now()});
+    if(!s.exists){toast('Zu diesem Code gibt es kein Spiel.');return;}
+    if(s.data().status!=='lobby'){toast('Die Anmeldung für dieses Spiel ist geschlossen.');return;}
+    await P.db.doc(`events/${code}/people/${P.uid}`).set({id:P.uid,name,at:Date.now()});
   }catch(e){return dbErr(e);}
   openEvent(code);
 }
 async function joinByCode(){
   const i=$('#codeIn'),code=(i?i.value:'').trim().toUpperCase();
   if(code.length<4){toast('Gib den Code aus vier Buchstaben ein.');return;}
-  try{
-    const ev=await P.db.doc('events/'+code).get();
-    if(ev.exists)return joinEvent(code);
-    const g=await P.db.doc('games/'+code).get();
-    if(g.exists&&g.data().status==='lobby')return joinGame(code);
-    if(g.exists)return toast('Dieses Spiel läuft schon.');
-    toast('Zu diesem Code gibt es nichts.');
-  }catch(e){dbErr(e);}
+  joinEvent(code);
 }
 function openEvent(code){
   unsub(listSubs);unsub(eventSubs);unsub(dashSubs);
-  Object.assign(E,{code,ev:null,people:[],sel:null,games:{}});
+  Object.assign(E,{code,ev:null,people:[],games:{},subbed:new Set()});
   showScreen('event');renderEvent();
   eventSubs.push(P.db.doc('events/'+code).onSnapshot(s=>{
-    if(!s.exists){toast('Die Veranstaltung wurde aufgelöst.');goPlay();return;}
+    if(!s.exists){toast('Das Spiel wurde aufgelöst.');ACT.home();return;}
     E.ev=s.data();onEventUpdate();
   },snapErr));
   eventSubs.push(P.db.collection(`events/${code}/people`).onSnapshot(s=>{
     E.people=s.docs.map(d=>d.data()).sort((a,b)=>a.at-b.at);
-    if(S.screen==='event')renderEvent();
+    if(isEvAdmin())autoGroups();
+    renderEventScreens();
   },snapErr));
 }
+function renderEventScreens(){if(S.screen==='event')renderEvent();if(S.screen==='dash')renderDash();}
 function onEventUpdate(){
   const ev=E.ev;
-  if(ev.status!=='lobby'){
-    if(isEvAdmin()){
-      const mine=ev.groups.find(g=>g.members.includes(P.uid));
-      if(S.screen==='event'){if(ev.groups.length===1&&mine&&mine.gameCode)subscribeGame(mine.gameCode);else openDash();}
-      else if(S.screen==='dash')renderDash();
-      return;
-    }
-    const g=ev.groups.find(g=>g.members.includes(P.uid));
-    if(g&&g.gameCode&&S.screen==='event'){subscribeGame(g.gameCode);return;}
+  if(isEvAdmin()){
+    if(S.screen==='event')showScreen('dash');
+    ev.groups.forEach(g=>{if(g.gameCode&&!E.subbed.has(g.gameCode)){E.subbed.add(g.gameCode);
+      dashSubs.push(P.db.doc('games/'+g.gameCode).onSnapshot(s=>{E.games[g.gameCode]=s.exists?s.data():null;if(S.screen==='dash')renderDash();},snapErr));}});
+    autoGroups();renderEventScreens();return;
   }
-  if(S.screen==='event')renderEvent();
+  // Wartet in einem Bot-Spiel auf einen Platz in einer Gruppe?
+  const m=(ev.merges||{})[P.uid];
+  if(m&&S.screen==='game'&&S.code===m.from&&S.mergeTo!==m.to){S.mergeTo=m.to;watchMerge(m.to);}
+  const g=ev.groups.find(g=>g.members.includes(P.uid));
+  if(g&&g.gameCode&&S.screen==='event'){subscribeGame(g.gameCode);return;}
+  renderEventScreens();
 }
-const personName=id=>{if(E.ev&&id===E.ev.adminId)return E.ev.adminName;const p=E.people.find(p=>p.id===id);return p?p.name:'?';};
-function pool(){
-  const ev=E.ev,inGroup=new Set(ev.groups.flatMap(g=>g.members));
-  const all=E.people.map(p=>p.id);if(ev.adminPlays&&!all.includes(ev.adminId))all.unshift(ev.adminId);
-  return all.filter(id=>!inGroup.has(id));
+const personName=id=>{const p=E.people.find(p=>p.id===id);return p?p.name:'?';};
+
+/* ---------- Gruppen bilden (läuft auf dem Gerät der Spielleitung) ---------- */
+// createGroupGame verändert den globalen Spielzustand kurz. Darum: sichern und danach wiederherstellen,
+// damit die Spielleitung beim Zuschauen nichts davon merkt.
+async function withScratchState(fn){
+  const saved={...S};
+  try{return await fn();}
+  finally{Object.keys(S).forEach(k=>{if(!(k in saved))delete S[k];});Object.assign(S,saved);}
 }
-function renderEvent(){
-  const b=$('#eventBody'),ev=E.ev;
-  if(!ev){b.innerHTML='<p class="empty" style="text-align:center">Lade Veranstaltung…</p>';return;}
-  const head=`<h2>Warteraum</h2><div class="code">${esc(ev.code)}</div>${isEvAdmin()&&ev.status==='lobby'?qrBlock('event',ev.code):''}
-    <button class="btn" data-act="shareEvent" style="align-self:center">Einladungslink teilen</button>`;
-  if(!isEvAdmin()){
-    const g=ev.groups.length>1?ev.groups.find(g=>g.members.includes(P.uid)):null;
-    let t;
-    const gReal=ev.groups.find(x=>x.members.includes(P.uid));
-    if(ev.status!=='lobby')t=gReal?'<p class="waiting" style="text-align:center">Deine Gruppe startet gleich…</p>':`<div class="note-box">Die Gruppen spielen schon. Frag ${esc(ev.adminName)}, ob du in der nächsten Runde dabei bist.</div>`;
-    else if(g)t=`<div class="team mine"><div class="th"><b>${esc(g.name)}</b><small>${g.members.length}</small></div>${g.members.map(id=>`<div class="tm">${esc(personName(id))}${id===P.uid?' <span class="you">(du)</span>':''}</div>`).join('')}</div>
-      <p class="waiting" style="text-align:center">Warte, bis ${esc(ev.adminName)} alle Gruppen startet<span class="dots"><i>.</i><i>.</i><i>.</i></span></p>`;
-    else t=`<p class="waiting" style="text-align:center">Du bist dabei. Warte, bis ${esc(ev.adminName)} das Spiel startet<span class="dots"><i>.</i><i>.</i><i>.</i></span></p>`;
-    b.innerHTML=head+`<p class="lead">${E.people.length+(ev.adminPlays?1:0)} Personen sind da.</p>`+t+`<div class="center-btns"><button class="linkbtn" data-act="leaveEvent">Warteraum verlassen</button></div>`;
-    return;
-  }
-  // Admin-Ansicht
-  const pl=pool(),sel=E.sel;
-  if(ev.groups.length===1){
-    const all=[...ev.groups[0].members,...pl];
-    b.innerHTML=head+`${timeSel(ev.turnTime??DEFAULT_TURN_TIME,'eventTime')}
-      <label class="toggle"><input type="checkbox" data-act="toggleAdminPlays" ${ev.adminPlays?'checked':''}><span>Ich spiele selbst mit</span></label>
-      <div class="list"><h3>Dabei (${all.length})</h3><div class="chips poolbox">${all.map(id=>`<span class="pchip">${esc(personName(id))}${id===P.uid?' (du)':''}</span>`).join('')||'<span class="empty">Noch niemand. Zeig den QR-Code oder teile den Link.</span>'}</div></div>
-      <button class="btn" data-act="addGroup" style="align-self:center">In Gruppen aufteilen</button>
-      <button class="btn primary big" data-act="startEvent" style="width:100%" ${all.length>=2&&all.length<=MAX_PLAYERS?'':'disabled'}>${all.length<2?'Warte auf Mitspieler…':all.length>MAX_PLAYERS?`Höchstens ${MAX_PLAYERS} pro Gruppe, bitte aufteilen`:`Spiel mit ${all.length} Personen starten`}</button>
-      <div class="center-btns"><button class="linkbtn" data-act="closeEvent">Spiel auflösen</button></div>`;
-    return;
-  }
-  const chip=id=>`<button class="pchip${sel===id?' on':''}" data-act="pickPerson" data-id="${esc(id)}">${esc(personName(id))}${id===P.uid?' (du)':''}</button>`;
-  const groups=ev.groups.map((g,gi)=>`<div class="team grp${sel?' target':''}" data-act="toGroup" data-gi="${gi}">
-      <div class="th"><b>${esc(g.name)}</b><small>${g.members.length}</small><button class="mini-btn" data-act="renameGroup" data-gi="${gi}" title="Umbenennen">✎</button>${ev.groups.length>1?`<button class="mini-btn" data-act="delGroup" data-gi="${gi}" title="Gruppe entfernen">✕</button>`:''}</div>
-      <div class="chips">${g.members.map(chip).join('')||'<span class="tm empty">leer</span>'}</div>
-      ${g.members.length===1?'<small class="warn">Mindestens 2 Personen</small>':''}${g.members.length>MAX_PLAYERS?`<small class="warn">Höchstens ${MAX_PLAYERS}</small>`:''}
-    </div>`).join('');
-  const filled=ev.groups.filter(g=>g.members.length);
-  const ok=filled.length>0&&filled.every(g=>g.members.length>=2&&g.members.length<=MAX_PLAYERS);
-  b.innerHTML=head+`
-    ${timeSel(ev.turnTime??DEFAULT_TURN_TIME,'eventTime')}
-    <label class="toggle"><input type="checkbox" data-act="toggleAdminPlays" ${ev.adminPlays?'checked':''}><span>Ich spiele selbst mit</span></label>
-    <div class="list"><h3>Noch ohne Gruppe (${pl.length})</h3>
-      <div class="chips poolbox${sel?' target':''}" data-act="toPool">${pl.map(chip).join('')||'<span class="empty">Alle sind eingeteilt.</span>'}</div></div>
-    <p class="hintline">${sel?`Tippe jetzt auf die Gruppe für <b>${esc(personName(sel))}</b>.`:'Tippe eine Person an und dann eine Gruppe.'}</p>
-    <div class="teams groups">${groups}</div>
-    <div class="row-btns"><button class="btn" data-act="addGroup">+ Gruppe</button>
-      <span class="seg-mini">${[2,3,4].map(n=>`<button class="${E.size===n?'on':''}" data-act="evSize" data-n="${n}">${n}er</button>`).join('')}</span>
-      <button class="btn" data-act="autoGroups">Automatisch verteilen</button></div>
-    <button class="btn primary big" data-act="startEvent" style="width:100%" ${ok?'':'disabled'}>${ok?`${filled.length} Gruppe${filled.length>1?'n':''} starten`:'Gruppen einteilen…'}</button>
-    ${pl.length&&ok?`<p class="empty" style="text-align:center">${pl.length} Person${pl.length>1?'en':''} ohne Gruppe ${pl.length>1?'werden':'wird'} beim Start auf die kleinsten Gruppen verteilt.</p>`:''}
-    <div class="center-btns"><button class="linkbtn" data-act="closeEvent">Spiel auflösen</button></div>`;
-}
-async function assignPerson(id,gi){
-  const ev=clone(E.ev);
-  ev.groups.forEach(g=>g.members=g.members.filter(m=>m!==id));
-  if(gi>=0)ev.groups[gi].members.push(id);
-  E.sel=null;E.ev=ev;renderEvent();
-  await writeEvent({groups:ev.groups});
+async function createGroupGame(ev,g){
+  const gcode=makeCode(),withBot=g.members.length===1;
+  const names=g.members.map(personName),ids=[...g.members];
+  if(withBot){names.push('🤖 Bot');ids.push('bot-'+gcode);}
+  await withScratchState(async()=>{
+    initState(names,ids,true,[],ev.turnTime??DEFAULT_TURN_TIME);
+    if(withBot)S.players[S.players.length-1].bot=true;
+    Object.assign(S,{code:gcode,hostId:P.uid,hostName:ev.adminName,createdAt:Date.now(),eventCode:ev.code,groupName:g.name,status:'intro'});
+    fillRacks();S.fresh.clear();
+    await P.db.doc('games/'+gcode).set(serialize());
+  });
+  g.gameCode=gcode;g.startedAt=Date.now();g.bot=withBot;
 }
 async function autoGroups(){
-  const ev=E.ev,ids=shuffle([...ev.groups.flatMap(g=>g.members),...pool()]);
-  const k=Math.max(1,Math.ceil(ids.length/E.size));
-  const groups=Array.from({length:k},(_,i)=>({name:ev.groups[i]?ev.groups[i].name:'Gruppe '+(i+1),members:[]}));
-  ids.forEach((id,i)=>groups[i%k].members.push(id));
-  E.sel=null;await writeEvent({groups});
-}
-async function startEvent(){
-  const ev=clone(E.ev);
-  // Übrige auf die kleinsten Gruppen verteilen, leere Gruppen weglassen
-  pool().forEach(id=>{const used=ev.groups.filter(g=>g.members.length),cand=used.length?used:ev.groups;const g=[...cand].sort((a,b)=>a.members.length-b.members.length)[0];if(g)g.members.push(id);});
-  ev.groups=ev.groups.filter(g=>g.members.length);
-  if(ev.groups.some(g=>g.members.length<2||g.members.length>MAX_PLAYERS)){toast(`Jede Gruppe braucht 2 bis ${MAX_PLAYERS} Personen.`);return;}
+  if(!isEvAdmin()||!E.ev||E.ev.status==='ended')return;
+  if(E.working){E.again=true;return;}
+  E.working=true;
   try{
-    for(const g of ev.groups){
-      const gcode=makeCode();
-      initState(g.members.map(personName),g.members,true,[],ev.turnTime??DEFAULT_TURN_TIME);
-      Object.assign(S,{code:gcode,hostId:P.uid,hostName:ev.adminName,createdAt:Date.now(),eventCode:ev.code,groupName:g.name});
-      fillRacks();S.fresh.clear();
-      await P.db.doc('games/'+gcode).set(serialize());
-      g.gameCode=gcode;
+    const ev=clone(E.ev),now=Date.now(),present=new Set(E.people.map(p=>p.id));let ch=false;
+    ev.seq=ev.seq||0;
+    // 1) Wer sich abgemeldet hat, verlässt seine wartende Gruppe
+    ev.groups.forEach(g=>{if(!g.gameCode){const n=g.members.filter(id=>present.has(id));if(n.length!==g.members.length){g.members=n;ch=true;}}});
+    const before=ev.groups.length;ev.groups=ev.groups.filter(g=>g.gameCode||g.members.length);if(ev.groups.length!==before)ch=true;
+    // 2) Neue Leute in die erste wartende Gruppe mit freiem Platz setzen, sonst eine neue Gruppe aufmachen
+    if(ev.status==='lobby'){
+      const assigned=new Set(ev.groups.flatMap(g=>g.members));
+      E.people.forEach(p=>{
+        if(assigned.has(p.id))return;
+        let g=ev.groups.find(g=>!g.gameCode&&g.members.length<GROUP_SIZE);
+        if(!g){ev.seq++;g={id:'g'+ev.seq,name:'Gruppe '+ev.seq,members:[]};ev.groups.push(g);}
+        g.members.push(p.id);ch=true;
+      });
     }
-    ev.status='running';ev.startedAt=Date.now();
-    await P.db.doc('events/'+ev.code).set(ev);
-  }catch(e){dbErr(e);}
+    // 3) Frist neu setzen, wenn sich die Gruppe ändert. Voll oder abgelaufen: starten
+    for(const g of ev.groups){
+      if(g.gameCode)continue;
+      if(g.n!==g.members.length){g.n=g.members.length;g.deadline=now+GROUP_WAIT_MS;ch=true;}
+      if(g.members.length>=GROUP_SIZE||ev.status==='closed'||now>=g.deadline){await createGroupGame(ev,g);ch=true;}
+    }
+    // 4) Alleinspieler in Gruppen mit freiem Platz schicken (Wechsel beim nächsten Levelwechsel)
+    const merges=clone(ev.merges||{});
+    for(const [uid,m] of Object.entries(merges)){
+      const d2=E.games[m.to];
+      if(d2&&d2.players.some(p=>p.id===uid)){
+        delete merges[uid];ch=true;
+        const g1=ev.groups.find(g=>g.gameCode===m.from);if(g1){g1.merged=true;g1.mergedTo=(ev.groups.find(g=>g.gameCode===m.to)||{}).name||'';}
+      }
+    }
+    const taken=new Set(Object.values(merges).map(m=>m.to));
+    for(const s of ev.groups.filter(g=>g.bot&&g.gameCode&&!g.merged&&!merges[g.members[0]])){
+      const d1=E.games[s.gameCode];if(!d1||d1.status==='ended')continue;
+      const targets=ev.groups.filter(g=>!g.bot&&g.gameCode&&!g.merged).map(g=>({g,d:E.games[g.gameCode]}))
+        .filter(x=>x.d&&x.d.status!=='ended'&&(x.d.level||1)<LEVELS.length)
+        .map(x=>({...x,load:x.d.players.length+Object.values(merges).filter(m=>m.to===x.g.gameCode).length}))
+        .filter(x=>x.load<MAX_GROUP).sort((a,b)=>a.load-b.load);
+      if(!targets.length)break;
+      merges[s.members[0]]={to:targets[0].g.gameCode,from:s.gameCode};ch=true;
+    }
+    if(ch)await writeEvent({groups:ev.groups,seq:ev.seq,merges});
+  }finally{E.working=false;if(E.again){E.again=false;autoGroups();}}
+}
+async function startGroupNow(gid){
+  const ev=clone(E.ev),g=ev.groups.find(x=>x.id===gid);
+  if(!g||g.gameCode||!g.members.length)return;
+  try{await createGroupGame(ev,g);await writeEvent({groups:ev.groups});}catch(e){dbErr(e);}
+}
+/* ---------- Teilnehmende: Nachrücken aus dem Bot-Spiel ---------- */
+function writeJoin(){
+  if(!S.mergeTo||!P.online||!S.players)return;
+  const i=meIdx();if(i<0)return;
+  P.db.doc(`games/${S.mergeTo}/live/join_${P.uid}`).set({uid:P.uid,name:S.players[i].name,score:S.players[i].score,at:Date.now()}).catch(()=>{});
+}
+function watchMerge(to){
+  writeJoin();
+  gameSubs.push(P.db.doc('games/'+to).onSnapshot(s=>{
+    if(!s.exists||S.mergeTo!==to)return;
+    const d=s.data();if(d.players&&d.players.some(p=>p.id===P.uid))doMerge(d);
+  },snapErr));
+}
+async function doMerge(d){
+  if(S.merging)return;S.merging=true;
+  unsub(gameSubs);
+  while(S.busy)await sleep(300);
+  try{await P.db.doc('games/'+S.code).set({...serialize(),status:'ended',rev:(S.rev||0)+1,updatedAt:Date.now()});}catch(e){}
+  S.mergeTo=null;closeModal();clearStory();
+  if(S.blitz)clearInterval(S.blitz.timer);S.blitz=null;S.tutorial=false;S.introCode=null;
+  S.rev=0;S.animTurn=-1;
+  subscribeGame(d.code);S.merging=false;
+  toast(`Du spielst jetzt in ${d.groupName||'einer Gruppe'} mit.`,'','turn',3500);
+}
+/* ---------- Teilnehmende: Warteraum ---------- */
+const leftText=ms=>Math.max(0,Math.ceil(ms/1000))+' s';
+function renderEvent(){
+  const b=$('#eventBody'),ev=E.ev;
+  if(!ev){b.innerHTML='<p class="empty" style="text-align:center">Verbinde…</p>';return;}
+  const g=ev.groups.find(g=>g.members.includes(P.uid));
+  let t;
+  if(!g)t=`<p class="waiting" style="text-align:center">Du wirst gleich einer Gruppe zugeteilt<span class="dots"><i>.</i><i>.</i><i>.</i></span></p>`;
+  else if(g.gameCode)t='<p class="waiting" style="text-align:center">Deine Gruppe startet<span class="dots"><i>.</i><i>.</i><i>.</i></span></p>';
+  else{
+    const n=g.members.length,seats=Array.from({length:GROUP_SIZE},(_,i)=>g.members[i]?`<div class="seat full">${esc(personName(g.members[i]))}${g.members[i]===P.uid?' <span class="you">(du)</span>':''}</div>`:'<div class="seat">wartet …</div>').join('');
+    const dl=`<b data-dl="${g.deadline||0}">${leftText((g.deadline||0)-Date.now())}</b>`;
+    const msg=n===1?`Kommt niemand dazu, spielst du in ${dl} gegen einen 🤖 Bot. Später wechselst du in eine Gruppe.`
+      :`Es geht los, sobald ${GROUP_SIZE} da sind, spätestens in ${dl}.`;
+    t=`<div class="seats">${seats}</div><p class="waitmsg">${msg}</p>`;
+  }
+  b.innerHTML=`<h2>Warte auf Spieler</h2>${t}<div class="center-btns"><button class="linkbtn" data-act="leaveEvent">Abmelden</button></div>`;
 }
 async function leaveEvent(){
   try{await P.db.doc(`events/${E.code}/people/${P.uid}`).delete();}catch(e){}
-  unsub(eventSubs);goPlay();
+  ACT.home();
 }
 async function closeEvent(){
-  if(!confirm('Spiel wirklich auflösen?'))return;
+  if(!confirm('Spiel wirklich auflösen? Laufende Gruppen werden beendet.'))return;
+  await endEvent(true);
   try{await P.db.doc('events/'+E.code).delete();}catch(e){dbErr(e);}
-  unsub(eventSubs);goPlay();
+  ACT.home();
 }
 async function shareEvent(){
-  const url=location.origin+location.pathname+'?event='+encodeURIComponent(E.code);
+  const url=inviteUrl('event',E.code);
   try{
-    if(navigator.share){await navigator.share({title:'Ponens',text:'Mach mit bei unserer Ponens-Runde! ',url});return;}
+    if(navigator.share){await navigator.share({title:'Ponens',text:'Mach mit bei Ponens! ',url});return;}
     await navigator.clipboard.writeText(url);toast('Link kopiert.');
   }catch(e){if(e&&e.name==='AbortError')return;prompt('Diesen Link verschicken:',url);}
 }
-/* ---------- Übersicht aller Gruppen ---------- */
-function openDash(){
-  unsub(gameSubs);unsub(dashSubs);E.games={};
-  showScreen('dash');renderDash();
-  (E.ev.groups||[]).forEach(g=>{if(!g.gameCode)return;
-    dashSubs.push(P.db.doc('games/'+g.gameCode).onSnapshot(s=>{E.games[g.gameCode]=s.exists?s.data():null;if(S.screen==='dash')renderDash();},snapErr));});
+/* ---------- Übersicht der Spielleitung ---------- */
+function openDash(){showScreen('dash');renderDash();}
+function groupInfo(g){
+  const ev=E.ev,d=g.gameCode&&E.games[g.gameCode];
+  if(g.merged)return{chip:'Gewechselt',cls:'over',meta:`${personName(g.members[0])} spielt jetzt in ${g.mergedTo||'einer Gruppe'}`,players:[]};
+  if(!g.gameCode){
+    const n=g.members.length;
+    return{chip:'Wartet',cls:'wait',
+      meta:n===1?`Allein, Bot-Spiel startet in <b data-dl="${g.deadline||0}">${leftText((g.deadline||0)-Date.now())}</b>`:`${n} von ${GROUP_SIZE}, Start in <b data-dl="${g.deadline||0}">${leftText((g.deadline||0)-Date.now())}</b>`,
+      players:g.members.map(id=>({name:personName(id),score:null})).concat(Array.from({length:GROUP_SIZE-n},()=>({name:'frei',empty:true,score:null})))};
+  }
+  if(!d)return{chip:'Lädt …',cls:'',meta:'',players:[]};
+  const solved=(d.tafeln||[]).filter(t=>t.solved).length,total=(d.tafeln||[]).length;
+  const players=d.players.map((p,i)=>({name:p.name,bot:p.bot,score:p.score,turn:d.status==='playing'&&i===d.cur,
+    merging:(ev.merges||{})[p.id]&&((E.games[(ev.merges[p.id]||{}).to]||{}).groupName||'')}));
+  if(d.status==='ended')return{chip:'Fertig',cls:'over',meta:`Endstand nach Level ${d.level}`,players,d};
+  if(d.status==='intro')return{chip:'Tutorial',cls:'intro',meta:'Die Gruppe schaut das Tutorial',players,d};
+  if(d.status==='blitz')return{chip:'Blitzrunde',cls:'blitz',meta:`Level ${d.level} von ${LEVELS.length} geschafft`,players,d,solved,total};
+  return{chip:`Level ${d.level}/${LEVELS.length}`,cls:'',meta:`${solved} von ${total} Tafeln gelöst${g.bot?' · gegen Bot':''}`,players,d,solved,total};
 }
 function renderDash(){
   const b=$('#dashBody'),ev=E.ev;if(!ev){b.innerHTML='';return;}
-  const all=[];
+  const open=ev.status==='lobby',all=[];
+  let running=0,waiting=0,done=0;
   const cards=ev.groups.map(g=>{
-    const d=E.games[g.gameCode];
-    if(!d)return`<div class="gcard"><div class="gh"><b>${esc(g.name)}</b></div><p class="empty">Lädt…</p></div>`;
-    d.players.forEach(p=>all.push({name:p.name,score:p.score,group:g.name}));
-    const solved=(d.tafeln||[]).filter(t=>t.solved).length,total=(d.tafeln||[]).length;
-    const st=d.status==='ended'?'Fertig':d.status==='blitz'?'Blitzrunde':`Level ${d.level}`;
-    const mine=d.players.some(p=>p.id===P.uid);
-    return`<div class="gcard${d.status==='blitz'?' blitz':''}${d.status==='ended'?' over':''}">
-      <div class="gh"><b>${esc(g.name)}</b><span class="gst">${st}</span></div>
-      ${d.status==='playing'?`<div class="gprog"><i style="width:${total?solved/total*100:0}%"></i></div><small class="empty">${solved} von ${total} Tafeln gelöst, Level ${d.level} von ${LEVELS.length}</small>`:''}
-      <div class="gpl">${[...d.players].map((p,i)=>({...p,i})).sort((a,b)=>b.score-a.score).map(p=>`<div>${d.status==='playing'&&p.i===d.cur?'<span class="turn">▶</span>':'<span class="turn"></span>'}<span>${esc(p.name)}${p.id===P.uid?' (du)':''}</span><b>${p.score}</b></div>`).join('')}</div>
-      <div class="row-btns"><button class="btn" data-act="watchGroup" data-code="${esc(g.gameCode)}">${mine?'Mein Spiel öffnen':'Zuschauen'}</button></div>
-    </div>`;
+    const info=groupInfo(g),d=info.d;
+    if(g.merged){done++;return`<div class="gcard over slim"><div class="gh"><b>${esc(g.name)}</b><span class="gst">${info.chip}</span></div><small class="empty">${esc(info.meta)}</small></div>`;}
+    if(!g.gameCode)waiting++;else if(d&&d.status==='ended')done++;else running++;
+    if(d)d.players.forEach(p=>{if(!p.bot)all.push({name:p.name,score:p.score,group:g.name});});
+    let btns='';
+    if(!g.gameCode)btns=`<button class="btn" data-act="startGroup" data-gid="${esc(g.id)}">Jetzt starten</button>`;
+    else if(d&&d.status!=='ended')btns=`<button class="btn primary" data-act="watchGroup" data-code="${esc(g.gameCode)}">Zuschauen</button>
+      ${d.status==='playing'?`<button class="btn" data-act="skipGroup" data-code="${esc(g.gameCode)}">Zug überspringen</button>`:''}
+      <button class="btn" data-act="endGroup" data-code="${esc(g.gameCode)}">Beenden</button>`;
+    else if(d)btns=`<button class="btn" data-act="watchGroup" data-code="${esc(g.gameCode)}">Ansehen</button>`;
+    const prog=info.total?`<div class="gprog"><i style="width:${info.solved/info.total*100}%"></i></div>`:'';
+    const pl=info.players.map(p=>`<div class="${p.empty?'emptyseat':''}${p.turn?' on':''}"><span class="turn">${p.turn?'▶':''}</span><span>${p.bot?'🤖 ':''}${esc(p.name)}${p.merging!==undefined&&p.merging!==false&&p.merging!==''?` <small>→ ${esc(p.merging)}</small>`:''}</span>${p.score!=null?`<b>${p.score}</b>`:''}</div>`).join('');
+    return`<div class="gcard ${info.cls}">
+      <div class="gh"><b>${esc(g.name)}</b><span class="gst">${esc(info.chip)}</span></div>
+      <div class="gmeta">${info.meta}</div>${prog}
+      <div class="gpl">${pl}</div>
+      ${d&&d.status==='playing'?`<div class="gturn">Dran: <b>${esc(d.players[d.cur].name)}</b></div>`:''}
+      <div class="row-btns">${btns}</div></div>`;
   }).join('');
   all.sort((a,b)=>b.score-a.score);
-  b.innerHTML=`<h2>Übersicht</h2><p class="lead">Veranstaltung ${esc(ev.code)}, ${ev.groups.length} Gruppen. Alles aktualisiert sich live.</p>
-    <div class="gcards">${cards}</div>
-    <div class="list"><h3>Gesamtrangliste</h3><div class="rank">${all.slice(0,30).map((p,k)=>`<div><span>${k+1}.</span><span>${esc(p.name)}<small>${esc(p.group)}</small></span><span class="p">${p.score}</span></div>`).join('')}</div></div>
-    <div class="center-btns">${ev.status!=='ended'?'<button class="btn" data-act="endEvent">Veranstaltung beenden</button>':'<p class="empty">Die Veranstaltung ist beendet.</p>'}<button class="linkbtn" data-act="home">Zum Hauptmenü</button></div>`;
+  b.innerHTML=`<h2>Spielleitung</h2>
+    <div class="code">${esc(ev.code)}</div>
+    ${open?qrBlock('event',ev.code)+`<button class="btn" data-act="shareEvent" style="align-self:center">Einladungslink teilen</button>
+      ${timeSel(ev.turnTime??DEFAULT_TURN_TIME,'eventTime')}
+      <p class="hintline">Wer beitritt, kommt automatisch in eine Gruppe. Zu dritt geht es sofort los, sonst nach ${Math.round(GROUP_WAIT_MS/1000)} Sekunden zu zweit oder gegen einen Bot. Lass diese Seite dafür geöffnet.</p>`
+      :'<p class="hintline">Die Anmeldung ist geschlossen.</p>'}
+    <div class="sumrow"><span class="sumchip">${E.people.length} Personen</span><span class="sumchip">${running} spielen</span><span class="sumchip">${waiting} warten</span><span class="sumchip">${done} fertig</span></div>
+    <div class="list"><h3>Gruppen</h3>
+      ${ev.groups.length?`<div class="gcards">${cards}</div>`:'<p class="empty">Noch niemand da. Zeig den QR-Code oder teile den Link.</p>'}</div>
+    ${all.length?`<div class="list"><h3>Gesamtrangliste</h3><div class="rank">${all.slice(0,30).map((p,k)=>`<div><span>${k+1}.</span><span>${esc(p.name)}<small>${esc(p.group)}</small></span><span class="p">${p.score}</span></div>`).join('')}</div></div>`:''}
+    <div class="center-btns">
+      ${open?'<button class="btn" data-act="closeSignup">Anmeldung schließen</button>':''}
+      ${ev.status!=='ended'?'<button class="btn" data-act="endEvent">Alle Spiele beenden</button>':''}
+      <button class="linkbtn" data-act="closeEvent">Spiel auflösen</button>
+      <button class="linkbtn" data-act="home">Zum Hauptmenü</button></div>`;
 }
-async function endEvent(){
-  if(!confirm('Veranstaltung beenden? Alle Gruppen bekommen ihre Endwertung.'))return;
-  try{
-    for(const g of E.ev.groups){
-      const d=E.games[g.gameCode];if(!d||d.status==='ended')continue;
-      await P.db.doc('games/'+g.gameCode).set({...clone(d),status:'ended',rev:(d.rev||0)+1,updatedAt:Date.now()});
-    }
-    await writeEvent({status:'ended'});
-  }catch(e){dbErr(e);}
+async function adminSkip(gc){
+  const d=clone(E.games[gc]);if(!d||d.status!=='playing')return;
+  const mover=d.cur;d.passes=(d.passes||0)+1;d.cur=(d.cur+1)%d.players.length;d.turn++;d.rev++;d.exchanged=false;d.updatedAt=Date.now();
+  d.lastMove={turn:d.turn,by:mover,skipped:true,placed:[],solved:[],faded:[]};
+  try{await P.db.doc('games/'+gc).set(d);toast(`Der Zug von ${d.players[mover].name} wurde übersprungen.`);}catch(e){dbErr(e);}
 }
+async function adminEndGame(gc,quiet){
+  const d=E.games[gc];if(!d||d.status==='ended')return;
+  if(!quiet&&!confirm('Das Spiel dieser Gruppe beenden?'))return;
+  try{await P.db.doc('games/'+gc).set({...clone(d),status:'ended',rev:(d.rev||0)+1,updatedAt:Date.now()});}catch(e){dbErr(e);}
+}
+async function endEvent(quiet){
+  if(!quiet&&!confirm('Alle Spiele beenden? Jede Gruppe bekommt ihre Endwertung.'))return;
+  for(const g of E.ev.groups)if(g.gameCode)await adminEndGame(g.gameCode,true);
+  await writeEvent({status:'ended'});
+}
+// Sekundentakt: Fristen prüfen (nur Spielleitung) und Countdowns in der Anzeige aktualisieren
+setInterval(()=>{
+  if(isEvAdmin()&&E.ev&&E.ev.status!=='ended')autoGroups();
+  $$('[data-dl]').forEach(el=>{el.textContent=leftText(+el.dataset.dl-Date.now());});
+},1000);
 
 /* ================= Ereignisse ================= */
 const ACT={
   start(){goPlay();},
-  newGame(){unsub(listSubs);showScreen('mode');renderMode();},
+  newGame(){ACT.local();},
+  hostNew(){ACT.lead();},
+  lead(){
+    if(!P.ready){toast('Einen Moment, die Verbindung wird aufgebaut.');return;}
+    if(!P.online){toast('Spiele leiten geht nur über den Spiel-Link mit Datenbank.');return;}
+    if(P.isHost){unsub(listSubs);showScreen('mode');renderMode();return;}
+    ACT.hostAccess();
+  },
+  hostAccess(){showModal(`<h3>Spiel leiten 🔒</h3><p>Dafür brauchst du den Zugangscode. Danach ist dieses Gerät dauerhaft freigeschaltet.</p><label class="field"><span>Code</span><input id="hostKey" type="password" autocomplete="off"></label><div class="stack" style="margin-top:12px"><button class="btn primary" data-act="hostLogin">Freischalten</button><button class="btn" data-act="closeModal">Abbrechen</button></div>`);},
+  hostLogin(){hostLogin();},
+  voteSkip(){const me=(L.intro||[]).find(x=>x.uid===P.uid);introVote({skip:!(me&&me.skip)});},
+  introDone(){introDone();},
+  startGroup(b){startGroupNow(b.dataset.gid);},
+  skipGroup(b){adminSkip(b.dataset.code);},
+  endGroup(b){adminEndGame(b.dataset.code);},
+  closeSignup(){writeEvent({status:'closed'});},
   modeOnline(){if(P.online)createEvent();},
   modeLocal(){ACT.local();},
   local(){unsub(listSubs);showScreen('setup');renderNames();$('#localTime').innerHTML=timeSel(S.localTime??DEFAULT_TURN_TIME,'localTime');},
-  tutorial(){startTutorial();},
+  tutorial(){startTutorial('solo');},
   count(b){S.count=+b.dataset.n;renderNames();},
-  go(){const names=$$('#names input').map((i,k)=>i.value.trim()||'Spieler '+(k+1));startLocalGame(names,S.localTime??DEFAULT_TURN_TIME);},
-  home(){closeModal();unsub(gameSubs);unsub(listSubs);unsub(eventSubs);unsub(dashSubs);E.ev=null;if(S.blitz)clearInterval(S.blitz.timer);S.blitz=null;S.tutorial=false;S.ended=false;S.players=null;S.online=false;$('#coach').classList.add('hidden');$('#toasts').innerHTML='';showScreen('start');},
+  go(){const names=$$('#names input').map((i,k)=>i.value.trim()||'Spieler '+(k+1));
+    S.pendingLocal={names,turnTime:S.localTime??DEFAULT_TURN_TIME};startTutorial('local');},
+  tutSkip(){if(S.tutorial&&!S.introCode)endTutorial();},
+  home(){closeModal();fingerHide();hideTip('tip');hideTip('tip2');S.tutorial=false;S.introCode=null;renderTutBanner();unsub(gameSubs);unsub(listSubs);unsub(eventSubs);unsub(dashSubs);E.ev=null;if(S.blitz)clearInterval(S.blitz.timer);S.blitz=null;S.tutorial=false;S.ended=false;S.players=null;S.online=false;$('#coach').classList.add('hidden');$('#toasts').innerHTML='';showScreen('start');},
   again(){startLocalGame(S.players.map(p=>p.name),S.turnTime);},
-  tutStart(){S.tutorial=false;$('#coach').classList.add('hidden');ACT.newGame();},
+  tutStart(){S.tutorial=false;$('#coach').classList.add('hidden');fingerHide();ACT.home();},
   coachNext(){coachNext();},
   coachSkip(){ACT.tutStart();},
   create(){if(P.online)createGame();},
@@ -2425,8 +2852,8 @@ const ACT={
   evSize(b){E.size=+b.dataset.n;renderEvent();},
   autoGroups(){autoGroups();},
   startEvent(){startEvent();},
-  watchGroup(b){unsub(dashSubs);resumeGame(b.dataset.code);},
-  toDash(){closeModal();if(E.ev&&E.code===S.eventCode)openDash();else openEvent(S.eventCode);},
+  watchGroup(b){resumeGame(b.dataset.code);},
+  toDash(){closeModal();unsub(gameSubs);if(E.ev&&E.code===S.eventCode)openDash();else openEvent(S.eventCode);},
   endEvent(){endEvent();},
   qrBig(b){showQrBig(b.dataset.kind,b.dataset.code);},
   lobbyTime(b){setLobbyTime(+b.dataset.t);},
@@ -2454,6 +2881,7 @@ let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(S.s
 
 {const q=new URLSearchParams(location.search),inv=q.get('spiel'),ev=q.get('event');if(inv)L.invite=inv.toUpperCase().slice(0,8);if(ev)L.eventInvite=ev.toUpperCase().slice(0,8);}
 if(L.invite||L.eventInvite){showScreen('play');renderPlay();}else showScreen('start');
+renderStart();
 initPlatform();
 </script>
 </body>
