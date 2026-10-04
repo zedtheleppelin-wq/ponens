@@ -1460,7 +1460,7 @@ async function actEndTurn(){
   S.passes=0;fillRacks();tickLastCall();
   const lm={turn:S.turn+1,by:mover,placed,solved,faded};
   const levelOver=finishLevelIfDue(lm);
-  if(!levelOver){S.cur=(S.cur+1)%S.n;S.exchanged=false;}
+  if(!levelOver&&!S.tutorial){S.cur=(S.cur+1)%S.n;S.exchanged=false;}
   S.turn++;S.rev++;S.lastMove=lm;S.animTurn=S.turn;
   writeGame();
   await playMove(lm);
@@ -1923,18 +1923,25 @@ function sparksAt(el){
 const TUT_MP={rows:[['🌧️','→','E'],['E']],concl:['E']};
 const TUT_MT={rows:[['🐱','→','E'],['¬','E']],concl:['¬','E']};
 const TUT_NOT={rows:[['n','🌧️','→','🎉'],['n','E']],concl:['E']};
-function tutBoard(kind,tpl,rack){
-  clearStory();
+function tutRack(list){
+  const r=Array(8).fill(null);
+  list.forEach((it,i)=>{const o=typeof it==='string'?{s:it}:it;r[i]=Object.assign(newTile(o.s),{orange:!!o.orange,glitter:!!o.glitter});});
+  return r;
+}
+function tutBoard(kind,tpl,rack,mia){
+  clearStory();S.cur=0;
+  if(mia){S.players=[S.players[0],{id:null,name:'Mia',score:0,rack:tutRack(mia),color:COLORS[1],team:null}];S.n=2;}
+  else if(S.players.length>1){S.players=[S.players[0]];S.n=1;}
   S.tafeln=[makeTafel(kind,0,0,'t0',tpl)];
-  const r=Array(8).fill(null);rack.forEach((sym,i)=>r[i]=Object.assign(newTile(sym),{orange:false,glitter:false}));
+  const r=tutRack(rack);
   S.players[0].rack=r;S.bag=[];S.fresh=new Set(r.filter(Boolean).map(t=>t.id));takeSnap();
   layout();render();
   const el=$('.tafel');if(el)el.animate([{transform:'scale(.6)',opacity:0},{transform:'scale(1.04)',opacity:1,offset:.7},{transform:'scale(1)'}],{duration:500,easing:'ease-out'});
 }
 async function runTutorialFlow(){
   const tid='t0',ring=on=>{$('#turnRing').classList.toggle('on',on);if(on)$('#turnRing rect').style.strokeDashoffset='45';};
-  const place=(r,k,sym,t,sub,ok,side)=>({t,sub,at:()=>slotEl(tid,r,k),ok,side,
-    task:()=>({target:[tid,r,k],goal:()=>slotSym(tid,r,k)===sym,wrong:tutWrong(tid,r,k,sym),hint:()=>fingerHint(0,sym,tid,r,k)})});
+  const place=(r,k,sym,t,sub,ok,side,p=0)=>({t,sub,at:()=>slotEl(tid,r,k),ok,side,
+    task:()=>({target:[tid,r,k],goal:()=>slotSym(tid,r,k)===sym,wrong:tutWrong(tid,r,k,sym),hint:()=>fingerHint(p,sym,tid,r,k)})});
   const endTurn=(ok)=>({t:'Tipp auf „Zug beenden“',at:()=>$('#dock .btn.end'),ok,okAt:()=>$('#score-0'),
     task:()=>({goal:()=>!S.busy&&!!(tafel(tid)||{}).solved,hint:async()=>{await fingerTap($('#dock .btn.end'));fingerHide();}})});
   const phases=[
@@ -1954,8 +1961,16 @@ async function runTutorialFlow(){
       place(1,1,'🌧️','… und dann 🌧️ dahinter','','Genau!'),
       place('c',0,'🎉','Was passiert jetzt?','Leg es hier unten hin','Richtig! Wir feiern 🎉'),
       endTurn('Prima!')]},
-    {steps:[{t:'Blitzrunde! Schnell!',sub:'Die Uhr läuft',at:()=>$('.tafel[data-tid="blitz"]'),blitz:true,
-      task:()=>({goal:()=>S.blitz&&S.blitz.results&&S.blitz.results.length>0})}]}
+    {noRing:true,
+     setup:()=>tutBoard('mini',{rows:[['🌧️','→','🍕'],['🌧️']],concl:['E']},['🐱','☂️','🎉'],[{s:'🍕',orange:true},'☂️','🐱','🎉']),steps:[
+      place('c',0,'🍕','Dir fehlt die Pizza 🍕!','Nimm die orange von Mia','Orange Steine darfst du dem Gegner abnehmen!',
+        {t:'Orange darfst du nehmen',at:()=>$(`.tile[data-p="1"][data-slot="${rackSlotOf(1,'🍕')}"]`)},1),
+      endTurn('Super!')]},
+    {noRing:true,
+     setup:()=>tutBoard('mini',{rows:[['🐱','→','🎉'],['E']],concl:['E']},[{s:'🐱',glitter:true},'🎉','☂️']),steps:[
+      place(1,0,'🐱','Zieh den glitzernden 🐱 hierher','Er funkelt ✨','Glitzernde Steine geben extra Punkte!'),
+      place('c',0,'🎉','Und 🎉 unten hin','','Fast geschafft!'),
+      endTurn('Plus 10 extra für den Glitzerstein!')]}
   ];
   for(const ph of phases){
     if(!S.tutorial)return;
@@ -1965,7 +1980,7 @@ async function runTutorialFlow(){
       if(st.blitz)await tutBlitzStart();
       render();showTip('tip',st.t,st.sub,st.at);
       if(st.side)showTip('tip2',st.side.t,'',st.side.at);
-      if(st===ph.steps[ph.steps.length-1]&&!st.blitz){ring(true);showTip('tip2','Die blaue Linie ist deine Zeit','',()=>$('#turnRing'));}
+      if(st===ph.steps[ph.steps.length-1]&&!st.blitz&&!ph.noRing){ring(true);showTip('tip2','Die blaue Linie ist deine Zeit','',()=>$('#turnRing'));}
       S.tutLive=true;
       const ok=await waitTask(st.task());
       S.tutLive=false;markTarget(null,null,null,false);fingerHide();hideTip('tip2');ring(false);
