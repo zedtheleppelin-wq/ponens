@@ -2335,15 +2335,19 @@ function renderStart(){
 }
 function renderPlayLists(){
   const el=$('#playLists');if(!el)return;
-  const now=Date.now();
-  const list=(L.hosted||[]).filter(e=>now-(e.createdAt||0)<12*3600e3).sort((a,b)=>b.createdAt-a.createdAt);
+  const now=Date.now(),recent=(L.hosted||[]).filter(e=>now-(e.createdAt||0)<12*3600e3);
+  // eigenes Spiel (nur das neueste) und fremde Spiele, deren Spielleitung gerade online ist
+  const own=recent.filter(e=>e.adminId===P.uid).sort((a,b)=>b.createdAt-a.createdAt).slice(0,1);
+  const others=recent.filter(e=>e.adminId!==P.uid&&now-(e.hostHb||0)<ACTIVE_MS).sort((a,b)=>b.createdAt-a.createdAt);
+  const list=[...own,...others];
   if(!list.length){el.innerHTML='<p class="empty" style="text-align:center">Gerade läuft kein Spiel, bei dem du mitmachen kannst.</p>';return;}
   el.innerHTML=`<div class="list"><h3>Laufende Spiele</h3>${list.map(e=>{
     const free=typeof warmSeats==='function'&&warmSeats(e).length;
-    const own=e.adminId===P.uid;
-    return`<div class="item"><div class="t"><b>Spiel von ${esc(e.adminName||'jemandem')}</b><small>Code ${esc(e.code)}${free?' · Platz frei':''}</small></div>
-      ${own?`<button class="btn" data-act="openEvent" data-code="${esc(e.code)}">Öffnen</button>`:`<button class="btn primary" data-act="hostedJoin" data-code="${esc(e.code)}">Beitreten</button>`}</div>`;}).join('')}</div>`;
+    const isOwn=e.adminId===P.uid;
+    return`<div class="item"><div class="t"><b>${isOwn?'Dein Spiel':'Spiel von '+esc(e.adminName||'jemandem')}</b><small>Code ${esc(e.code)}${free?' · Platz frei':''}</small></div>
+      ${isOwn?`<button class="btn" data-act="openEvent" data-code="${esc(e.code)}">Öffnen</button>`:`<button class="btn primary" data-act="hostedJoin" data-code="${esc(e.code)}">Beitreten</button>`}</div>`;}).join('')}</div>`;
 }
+setInterval(()=>{if(S.screen==='play'&&P.online)renderPlayLists();},10000);
 async function shareInvite(){
   const url=location.origin+location.pathname+'?spiel='+encodeURIComponent(L.lobby.code);
   const text='Spiel mit mir Ponens! ';
@@ -2552,8 +2556,9 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)sendHeartb
 
 /* ================= Spielleitung: Gruppen, Bot, Nachrücken ================= */
 let GROUP_SIZE=3,GROUP_WAIT_MS=30000;     // 3 Personen starten sofort, sonst nach 30 s zu zweit bzw. gegen den Bot
+let HOST_HB_MS=30000,ACTIVE_MS=90000;     // die Spielleitung meldet sich alle 30 s, nach 90 s Stille gilt ihr Spiel als nicht mehr aktiv
 let AWAY_MS=60000,WARM_MS=600000;      // nach 60 s ohne Lebenszeichen gilt jemand als weg, sein Platz bleibt 10 min frei
-const E={code:null,ev:null,people:[],games:{},subbed:new Set(),skipped:new Set(),working:false,again:false};
+const E={code:null,ev:null,people:[],games:{},subbed:new Set(),skipped:new Set(),beat:false,working:false,again:false};
 let eventSubs=[],dashSubs=[];
 const isEvAdmin=()=>!!E.ev&&E.ev.adminId===P.uid;
 async function writeEvent(patch){
@@ -2576,7 +2581,14 @@ async function createEvent(){
   const name=readName();if(!name)return;
   if(!P.isHost){toast('Spiele leiten geht nur mit Zugangscode.');return;}
   const code=makeCode();
-  try{await P.db.doc('events/'+code).set({code,adminId:P.uid,adminName:name,createdAt:Date.now(),status:'lobby',turnTime:DEFAULT_TURN_TIME,groups:[],seq:0,merges:{},v:18});}
+  try{   // Alte Spiele dieser Spielleitung aufräumen: nie gestartete löschen, sehr alte beenden
+    const old=await P.db.collection('events').where('adminId','==',P.uid).get();
+    for(const d of old.docs){const o=d.data(),started=(o.groups||[]).some(g=>g.gameCode);
+      if(o.status==='ended')continue;
+      if(!started)await P.db.doc('events/'+o.code).delete();
+      else if(Date.now()-(o.createdAt||0)>2*3600e3)await P.db.doc('events/'+o.code).update({status:'ended'});}
+  }catch(e){console.warn(e);}
+  try{await P.db.doc('events/'+code).set({code,adminId:P.uid,adminName:name,createdAt:Date.now(),hostHb:Date.now(),status:'lobby',turnTime:DEFAULT_TURN_TIME,groups:[],seq:0,merges:{},v:18});}
   catch(e){return dbErr(e);}
   openEvent(code);
 }
@@ -2648,11 +2660,14 @@ async function joinByCode(){
 }
 function openEvent(code){
   unsub(listSubs);unsub(eventSubs);unsub(dashSubs);
-  Object.assign(E,{code,ev:null,people:[],games:{},subbed:new Set(),skipped:new Set()});
+  Object.assign(E,{code,ev:null,people:[],games:{},subbed:new Set(),skipped:new Set(),beat:false,sig:null});
   showScreen('event');renderEvent();
   eventSubs.push(P.db.doc('events/'+code).onSnapshot(s=>{
     if(!s.exists){toast('Das Spiel wurde aufgelöst.');ACT.home();return;}
-    E.ev=s.data();onEventUpdate();
+    E.ev=s.data();
+    const sig=JSON.stringify({...E.ev,hostHb:0});
+    if(sig===E.sig)return;      // nur ein Lebenszeichen der Spielleitung: nichts neu zeichnen
+    E.sig=sig;onEventUpdate();
   },snapErr));
   eventSubs.push(P.db.collection(`events/${code}/people`).onSnapshot(s=>{
     const prev=E.people.map(p=>p.id+'|'+p.name).join(',');
@@ -2665,6 +2680,7 @@ function renderEventScreens(){if(S.screen==='event')renderEvent();if(S.screen===
 function onEventUpdate(){
   const ev=E.ev;
   if(isEvAdmin()){
+    if(!E.beat){E.beat=true;hostBeat();}
     if(S.screen==='event')showScreen('dash');
     ev.groups.forEach(g=>{if(g.gameCode&&!E.subbed.has(g.gameCode)){E.subbed.add(g.gameCode);
       dashSubs.push(P.db.doc('games/'+g.gameCode).onSnapshot(s=>{E.games[g.gameCode]=s.exists?s.data():null;if(S.screen==='dash')renderDash();},snapErr));}});
@@ -2925,6 +2941,14 @@ setInterval(()=>{
   if(isEvAdmin()&&E.ev&&E.ev.status!=='ended')autoGroups();
   $$('[data-dl]').forEach(el=>{el.textContent=leftText(+el.dataset.dl-Date.now());});
 },1000);
+
+// Lebenszeichen der Spielleitung: Nur Spiele, deren Spielleitung gerade da ist, erscheinen im Beitreten-Menü
+function hostBeat(){
+  if(!isEvAdmin()||!E.ev||E.ev.status==='ended')return;
+  const t=Date.now();E.ev.hostHb=t;
+  P.db.doc('events/'+E.code).update({hostHb:t}).catch(()=>{});
+}
+setInterval(hostBeat,HOST_HB_MS);
 
 /* ================= Ereignisse ================= */
 const ACT={
