@@ -652,6 +652,36 @@ body{background:
 .gpl .on{font-weight:700}
 .gpl .emptyseat{color:var(--muted);font-style:italic}
 .gpl small{color:var(--muted);font-weight:500}
+
+#tutBanner{position:absolute;left:50%;top:56px;transform:translateX(-50%) translateY(-8px);z-index:15;display:flex;flex-direction:column;align-items:center;
+  background:var(--walnut);color:#fbf1df;border-radius:16px;padding:8px 22px;box-shadow:0 6px 18px rgba(40,20,5,.3);opacity:0;pointer-events:none;
+  transition:opacity .3s,transform .3s;white-space:nowrap}
+#tutBanner.on{opacity:1;transform:translateX(-50%)}
+#tutBanner b{font-family:var(--serif);font-size:21px;letter-spacing:.01em}
+#tutBanner span{font-size:13.5px;opacity:.9}
+
+.scanbtn{width:100%;padding:20px}
+.or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:14px;margin:4px 0}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+.scanbox{position:relative;aspect-ratio:1;max-width:340px;margin:0 auto 12px;border-radius:18px;overflow:hidden;background:#000}
+.scanbox video{width:100%;height:100%;object-fit:cover}
+.scanframe{position:absolute;inset:16%;border:3px solid #fff;border-radius:16px;box-shadow:0 0 0 999px rgba(0,0,0,.35)}
+
+.seatlist{display:grid;gap:8px;margin:6px 0 12px}
+.seatcard{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--chip);border-radius:14px;padding:10px 12px}
+.seatcard.mine{box-shadow:0 0 0 2px var(--accent)}
+.seatcard .sc-t{display:flex;flex-direction:column;min-width:0}
+.seatcard small{color:var(--muted);font-size:13px}
+.seatcard em{font-style:normal;font-size:12px;font-weight:700;color:var(--accent)}
+
+.tile.bymark{outline:3px solid var(--by);outline-offset:1px}
+
+.status.open{background:rgba(47,125,82,.1);color:var(--good)}
+.status.bad{background:rgba(184,67,47,.15);color:var(--bad)}
+
+.countdown.word{font-size:min(54px,12vw);max-width:94vw;overflow:hidden;text-overflow:ellipsis}
+
+.ver{position:fixed;bottom:8px;left:0;right:0;text-align:center;font-size:11px;color:var(--muted);opacity:.65;pointer-events:none}
 </style>
 </head>
 <body>
@@ -662,13 +692,13 @@ body{background:
     <h1>Ponens</h1>
     <p class="sub">Leg Aussagen aufs Raster und zieh daraus gültige Schlüsse.</p>
     <div class="btns" id="startBtns"></div>
+    <div class="ver" id="ver"></div>
   </section>
 
   <!-- Online: Spiel erstellen / beitreten -->
   <section id="play" class="screen center scroll hidden">
     <div class="panel">
       <h2>Beitreten</h2>
-      <p class="lead">Gib den Code ein, den dir die Person zeigt, die das Spiel erstellt hat.</p>
       <div id="playBody"></div>
       <div class="center-btns">
         <button class="linkbtn" data-act="home">Zurück</button>
@@ -742,6 +772,7 @@ body{background:
 </div>
 
 <script>
+const BUILD='20261005-0543';
 'use strict';
 /* ================= Helpers ================= */
 const $=(s,e=document)=>e.querySelector(s), $$=(s,e=document)=>[...e.querySelectorAll(s)];
@@ -770,7 +801,7 @@ const TEAMS=[{name:'Füchse',icon:'🦊'},{name:'Bären',icon:'🐻'},{name:'Eul
 const MAX_PLAYERS=6;
 const MAX_NEW=4,DEFAULT_TURN_TIME=60,MAX_GROUP=4;
 const GLITTER_BONUS=10,CHAIN_BONUS=5,TEAM_BONUS=15,MOVES_PER_TURN=2,FADE_ROUNDS=3;
-const BLITZ_POINTS=[15,10,6,3];
+const BLITZ_TILE_PTS=4;      // jeder Stein, den man in der Blitzrunde anlegt, bringt 4 Punkte
 // Tafeln mit Vorgaben. 'E' = Feld für ein Emoji, 'n' = kleines Feld für ein optionales ¬,
 // alles andere ist fest vorgegeben (auch Emojis als Orientierung).
 const KINDS={
@@ -1022,14 +1053,40 @@ function evalTafel(tf,who){
   return{ok:true,tid:tf.id,gains,mine:gains[who],total:Object.values(gains).reduce((a,b)=>a+b,0),label,story:storyFor(prem,cf),depth:d.d};
 }
 const touched=tf=>[...tf.rows,tf.concl].some(r=>entries(r).some(e=>e.tent||e.moved));
-function pendingResults(){
-  const res=[];
-  S.tafeln.forEach(tf=>{
-    if(tf.solved||!touched(tf))return;
-    if(tf.concl.locked){const ev=evalTafel(tf,S.cur);if(ev.ok)res.push(ev);}
-    else if(entries(tf.concl).some(e=>!e.fixed))res.push(evalTafel(tf,S.cur));
-  });
-  return res;
+/* ---- Zustand einer angefassten Tafel am Zugende ----
+   solved:     alle großen Felder belegt und der Schluss stimmt
+   open:       noch Felder frei, aber der Schluss kann mit passenden Steinen noch gelingen (z. B. wenn die anderen weiterlegen)
+   impossible: noch Felder frei, aber mit diesen Steinen kann der Schluss nie mehr klappen
+   invalid:    alle Felder belegt, aber der Schluss stimmt nicht */
+const COMPL=new Map();
+function tafelCompletable(tf){
+  const sig=[...tf.rows,tf.concl].map(r=>r.slots.map(e=>e?e.tile.s:'_').join(',')).join('/')+'|'+tf.kind;
+  if(COMPL.has(sig))return COMPL.get(sig);
+  const all=blitzFreeSlots(tf);
+  [...tf.rows,tf.concl].forEach((row,ri)=>row.types.forEach((ty,k)=>{if(ty==='n'&&!row.slots[k])all.push({r:ri===tf.rows.length?'c':ri,k,ty:'n'});}));
+  const rec=i=>{
+    if(i===all.length)return evalTafel(tf,S.cur).ok;
+    const f=all[i];
+    for(const s of (f.ty==='E'?EMOJIS:f.ty==='J'?['→']:[null,'¬'])){
+      rowOf(tf,f.r).slots[f.k]=s?{tile:{s},by:S.cur}:null;
+      if(rec(i+1))return true;
+    }
+    rowOf(tf,f.r).slots[f.k]=null;
+    return false;
+  };
+  const ok=rec(0);
+  all.forEach(f=>{rowOf(tf,f.r).slots[f.k]=null;});
+  if(COMPL.size>400)COMPL.clear();
+  COMPL.set(sig,ok);return ok;
+}
+function tafelStatus(tf){
+  if(!blitzFreeSlots(tf).length){const ev=evalTafel(tf,S.cur);return ev.ok?{state:'solved',ev,tf}:{state:'invalid',ev,tf};}
+  return{state:tafelCompletable(tf)?'open':'impossible',tf};
+}
+const pendingStates=()=>S.tafeln.filter(tf=>!tf.solved&&touched(tf)).map(tafelStatus);
+const isBadState=s=>s.state==='impossible'||s.state==='invalid';
+function returnNewTiles(tf){
+  [...tf.rows,tf.concl].forEach(row=>row.slots.forEach((e,k)=>{if(e&&e.tent){row.slots[k]=null;returnToRack(e.from,e.slot,e.tile);}}));
 }
 const solvedCount=()=>S.tafeln.filter(t=>t.solved).length;
 
@@ -1039,19 +1096,19 @@ function tileHTML(t,cls='',attrs=''){
   return `<div class="tile${t.orange?' orange':''}${t.glitter&&!t.cashed?' glitter':''}${emo?' emo':''} ${cls}" ${attrs} title="${emo?esc(EMO[t.s].name):esc(t.s)}" aria-label="${emo?esc(EMO[t.s].name):esc(t.s)}${t.orange?', orange':''}"><span class="g">${t.s}</span>${v?`<span class="v">${v}</span>`:''}</div>`;
 }
 function statusHTML(){
-  const res=pendingResults();if(!res.length)return'';
-  const ok=res.filter(r=>r.ok),bad=res.filter(r=>!r.ok);
-  if(bad.length)return`<span class="status">${esc(bad[0].short)}</span>`;
-  const pts=ok.reduce((a,r)=>a+(r.mine||0),0);
-  return`<span class="status ok">✓ ${ok.length>1?ok.length+' Schlüsse':esc(ok[0].label)}, +${pts}</span>`;
+  const st=pendingStates();if(!st.length)return'';
+  const bad=st.find(isBadState);
+  if(bad)return`<span class="status bad">${bad.state==='invalid'?esc(bad.ev.short):'Passt nicht zusammen'}</span>`;
+  const ok=st.filter(s=>s.state==='solved');
+  if(ok.length){const pts=ok.reduce((a,s)=>a+(s.ev.mine||0),0);return`<span class="status ok">✓ ${ok.length>1?ok.length+' Schlüsse':esc(ok[0].ev.label)}, +${pts}</span>`;}
+  return`<span class="status open">Passt bisher, noch offen</span>`;
 }
 function controlsHTML(){
   if(inBlitz()){
     const b=S.blitz;
-    if(b.finished)return`<div class="controls"><span class="waiting">${b.mine&&b.mine.ok?'Geschafft in '+secs(b.mine.ms)+'!':'Die Zeit ist um.'} Warte auf die anderen<span class="dots"><i>.</i><i>.</i><i>.</i></span></span></div>`;
-    if(!b.running)return S.online?`<div class="controls"><span class="waiting">Gleich geht's los<span class="dots"><i>.</i><i>.</i><i>.</i></span></span></div>`
-      :`<div class="controls"><button class="btn primary end" data-act="blitzGo">${esc(b.label||'Los!')}</button></div>`;
-    return`<div class="controls"><div class="timer"><div class="bar" id="blitzBar"></div><span id="blitzTime"></span></div><button class="btn icon" data-act="undo" aria-label="Alles zurücknehmen">↺</button></div>`;
+    if(b.finished)return`<div class="controls"><span class="waiting">${b.tf.solved?'Brett voll!':'Die Zeit ist um.'} Gleich geht es weiter<span class="dots"><i>.</i><i>.</i><i>.</i></span></span></div>`;
+    if(!b.running)return`<div class="controls"><span class="waiting">Gleich geht's los<span class="dots"><i>.</i><i>.</i><i>.</i></span></span></div>`;
+    return`<div class="controls"><div class="timer"><div class="bar" id="blitzBar"></div><span id="blitzTime"></span></div></div>`;
   }
   if(!isMyTurn())return`<div class="controls"><span class="waiting">${esc(curP().name)} ist dran<span class="dots"><i>.</i><i>.</i><i>.</i></span></span></div>`;
   if(S.mode==='exchange'){
@@ -1083,9 +1140,10 @@ function tilesHTML(rack,p,active){
 }
 function blitzBadge(i){
   if(!inBlitz())return'';
-  const r=(S.blitz.results||[]).find(x=>x.i===i);
-  if(!r)return'<span class="moves">legt…</span>';
-  return r.ok?`<span class="moves ok">✓ ${secs(r.ms)}</span>`:'<span class="moves">Zeit um</span>';
+  const b=S.blitz;
+  let n=Object.values(b.placed||{}).filter(v=>v.by===i).length;
+  if(!S.online){const r=(b.results||[]).find(x=>x.i===i);n=r?r.n:(i===b.player?b.mine:0);}
+  return`<span class="moves${n?' ok':''}">${n} Stein${n===1?'':'e'}</span>`;
 }
 function rackwrapHTML(i,inDock){
   const Pl=S.players[i],active=!inBlitz()&&i===S.cur&&!S.ended;
@@ -1155,7 +1213,8 @@ function rowHTML(tf,r,draftMode){
     if(ty==='n')sc+=' nar';else if(ty==='J')sc+=' jun';else if(ty==='F'&&e&&!EMO[e.tile.s])sc+=' op';else if(ty==='E')sc+=' emo-slot';
     const o=S.over;
     if(e){const c=(e.tent?'tent':'')+(draftMode&&e.tent?' draft':'')+(S.popIds.has(e.tile.id)?' pop':'')+(e.fixed?' fixedtile':'')+(row.locked?' goldtile':'');
-      inner=tileHTML(e.tile,c,draftMode||e.fixed||tf.solved?'':`data-tid="${tf.id}" data-r="${r}" data-k="${i}"`);sc+=' full';}
+      const bc=inBlitz()&&e.by!=null&&e.by>=0&&S.players[e.by]?S.players[e.by].color:null;
+      inner=tileHTML(e.tile,c+(bc?' bymark':''),(draftMode||e.fixed||tf.solved?'':`data-tid="${tf.id}" data-r="${r}" data-k="${i}"`)+(bc?` style="--by:${bc}"`:''));sc+=' full';}
     else if(o&&o.tid===tf.id&&o.r===r&&o.k===i&&held&&!draftMode){inner=tileHTML(held,'ghost'+(o.err?' bad':''));}
     else if(canPlace&&!tf.solved&&!insertError(tf,r,i,held.s,kind))sc+=' ok';
     slots+=`<div class="${sc}" style="width:${slotW(row,i,G.c)}px" data-tid="${tf.id}" data-r="${r}" data-k="${i}">${inner}</div>`;
@@ -1189,7 +1248,7 @@ function renderTop(){
   const el=$('#levelInfo');if(!el)return;
   if(!S.players||S.screen!=='game'){el.textContent='';return;}
   if(S.tutorial){
-    if(S.introCode){const d=L.realDoc,ids=d?d.players.filter(p=>!p.bot).map(p=>p.id):[],v=L.intro||[];
+    if(S.introCode){const d=L.realDoc,ids=d?d.players.filter(p=>!p.bot&&!isAway(p.id)).map(p=>p.id):[],v=L.intro||[];
       const yes=ids.filter(id=>v.some(x=>x.uid===id&&(x.skip||x.done))).length,me=v.find(x=>x.uid===P.uid);
       el.innerHTML=`<button class="votepill${me&&me.skip?' on':''}" data-act="voteSkip">Überspringen ${yes}/${ids.length} ✋</button>`;}
     else el.innerHTML='<button class="votepill" data-act="tutSkip">Überspringen ⏭</button>';
@@ -1200,7 +1259,15 @@ function renderTop(){
   el.innerHTML=`${S.groupName?`<span class="nm">${esc(S.groupName)}</span>`:''}<b>Level ${S.level}</b><span class="nm">${esc(lv.name)}</span><span class="prog">${solvedCount()}/${S.tafeln.length}</span>`;
   $('#bagInfo').textContent=S.lastCall!=null?`Letzte Züge: ${S.lastCall}`:`Beutel: ${S.bag.length}`;
 }
+function renderTutBanner(){
+  let el=$('#tutBanner');
+  if(!el){el=document.createElement('div');el.id='tutBanner';$('#game').appendChild(el);}
+  if(!S.tutorial){el.classList.remove('on');return;}
+  const sub=S.introCode||S.tutMode==='local'?'Danach geht’s gleich los!':'Probier es einfach aus.';
+  el.innerHTML=`<b>🎓 Tutorial</b><span>${sub}</span>`;el.classList.add('on');
+}
 function render(){
+  renderTutBanner();
   if(!S.players||S.screen!=='game')return;
   renderRacks();renderBoard();renderTop();
   $$('.coach-hl').forEach(e=>e.classList.remove('coach-hl'));
@@ -1212,7 +1279,7 @@ function render(){
 /* ================= Layout ================= */
 function layout(){
   const app=$('#app'),W=app.clientWidth,H=app.clientHeight,root=document.documentElement.style;
-  const topH=52,n=S.n||2;
+  const topH=52+(S.tutorial?64:0),n=S.n||2;
   const tm=Math.round(clamp(16,(W-170)/9,W>700?30:(n>4?20:24)));
   const stripH=(n-1)*(tm+(n>4?10:16))+6+(teamMode()?34:0);
   const tA=Math.round(clamp(32,(W-40)/8.9,54));
@@ -1342,10 +1409,11 @@ function insertEntry(info,tid,r,k,kind){
   const tf=tafel(tid),row=rowOf(tf,r);
   if(kind==='new'&&!inBlitz()&&!S.tutorial&&newCount()>=MAX_NEW)return{msg:`Pro Zug darfst du höchstens ${MAX_NEW} neue Steine legen. Nimm einen zurück oder beende den Zug.`};
   const err=insertError(tf,r,k,info.tile.s,kind);if(err)return err;
+  if(inBlitz()&&kind==='new'&&!S.tutorial){const be=blitzValidate(tf,r,k,info.tile.s);if(be)return be;}
   row.slots[k]=kind==='move'?{tile:info.tile,by:info.by,moved:true}:{tile:info.tile,by:inBlitz()?meIdx():S.cur,tent:true,from:info.from,slot:info.slot};
   return null;
 }
-function afterChange(){if(inBlitz())checkBlitz();}
+function afterChange(){if(inBlitz())blitzCommit();}
 function actSelect(p,slot){
   const t=rackOf(p)[slot];if(!t)return;
   if(S.mode==='exchange'){
@@ -1412,14 +1480,16 @@ async function actEndTurn(){
   if(S.mode!=='place')cancelMode();
   S.sel=null;
   if(!hasNew()){render();toast('Lege in jedem Zug mindestens einen neuen Stein aus deiner Leiste.');return;}
-  const res=pendingResults(),bad=res.filter(r=>!r.ok);
+  // Fertige Schlüsse werden gewertet, angefangene bleiben liegen, solange sie noch gelingen können.
+  const states=pendingStates(),bad=states.filter(isBadState);
   if(bad.length){
-    bad.forEach(b=>{const tf=tafel(b.tid);if(tf.concl.locked)return;
-      tf.concl.slots=tf.concl.slots.map(e=>{if(e&&e.tent){returnToRack(e.from,e.slot,e.tile);return null;}return e;});});
+    bad.forEach(b=>returnNewTiles(b.tf));
     render();scheduleDraft();
-    toast(bad[0].msg+' Die Konklusion kommt zurück in deine Leiste.','Das ist noch kein gültiger Schluss','',6500);
+    const b0=bad[0];
+    toast(b0.state==='invalid'?b0.ev.msg+' Deine Steine auf dieser Tafel kommen zurück.':'Mit diesen Steinen kann der Schluss auf dieser Tafel nicht mehr gelingen. Deine Steine dort kommen zurück in die Leiste.','Das passt noch nicht zusammen','',6500);
     return;
   }
+  const res=states.filter(s=>s.state==='solved').map(s=>s.ev);
   S.busy=true;
   const mover=S.cur,placed=[];
   S.tafeln.forEach(tf=>[...tf.rows,tf.concl].forEach(row=>{
@@ -1445,7 +1515,7 @@ async function actEndTurn(){
   S.passes=0;fillRacks();tickLastCall();
   const lm={turn:S.turn+1,by:mover,placed,solved,faded};
   const levelOver=finishLevelIfDue(lm);
-  if(!levelOver){S.cur=(S.cur+1)%S.n;S.exchanged=false;}
+  if(!levelOver&&!S.tutorial){S.cur=(S.cur+1)%S.n;S.exchanged=false;}
   S.turn++;S.rev++;S.lastMove=lm;S.animTurn=S.turn;
   writeGame();
   await playMove(lm);
@@ -1474,12 +1544,55 @@ function afterMove(lm){
 function finishGame(){closeModal();S.status='ended';S.ended=true;S.rev++;writeGame();endGame();}
 
 /* ================= Blitzrunde ================= */
+/* ---- Blitzrunde: alle legen gleichzeitig an dieselbe Tafel, jeder angelegte Stein zählt ---- */
+const bkey=(r,k)=>r+':'+k;
+function blitzFreeSlots(tf){
+  const out=[];
+  [...tf.rows,tf.concl].forEach((row,ri)=>row.types.forEach((ty,k)=>{
+    if((ty==='E'||ty==='J')&&!row.slots[k])out.push({r:ri===tf.rows.length?'c':ri,k,ty});}));
+  return out;
+}
+// Findet eine vollständige Belegung der freien Pflichtfelder, mit der der Schluss stimmt, und zwar nur mit den Steinen,
+// die in der Leiste wirklich bereitliegen (mengengenau, abzüglich dessen, was schon auf der Tafel liegt).
+function blitzSolve(tf,spec){
+  const have={};spec.rack.forEach(t=>have[t.s]=(have[t.s]||0)+1);
+  [...tf.rows,tf.concl].forEach(row=>row.slots.forEach(e=>{if(e&&!e.fixed)have[e.tile.s]=(have[e.tile.s]||0)-1;}));
+  if(Object.values(have).some(v=>v<0))return null;
+  const types=Object.keys(have).filter(s=>EMO[s]);
+  const free=blitzFreeSlots(tf);let sol=null;
+  const rec=i=>{
+    if(i===free.length)return evalTafel(tf,0).ok;
+    const f=free[i];
+    for(const s of (f.ty==='E'?types:['→'])){
+      if((have[s]||0)<=0)continue;
+      have[s]--;rowOf(tf,f.r).slots[f.k]={tile:{s},by:0};
+      if(rec(i+1)){if(!sol)sol=free.map(q=>({r:q.r,k:q.k,sym:rowOf(tf,q.r).slots[q.k].tile.s}));return true;}
+      rowOf(tf,f.r).slots[f.k]=null;have[s]++;
+    }
+    return false;
+  };
+  const ok=rec(0);
+  free.forEach(f=>{rowOf(tf,f.r).slots[f.k]=null;});
+  return ok?(sol||[]):null;     // volle Tafel: Die Lösung ist die leere Liste (nichts mehr zu legen)
+}
 function makeBlitzSpec(level){
-  const B=BLITZ[(level-1)%BLITZ.length],tpl=genTpl(B.kind);
-  const pick=()=>EMOJIS[Math.random()*EMOJIS.length|0];
-  const extra=[pick(),['¬',pick()][Math.random()*2|0]];
-  const rack=shuffle([...tpl.sol,...extra]).map(s=>({id:uidT(),s,orange:false,glitter:false,cashed:true}));
-  return{level,kind:B.kind,sec:B.sec,rack,tpl:{rows:tpl.rows,concl:tpl.concl},id:uidT()};
+  const B=BLITZ[(level-1)%BLITZ.length],pick=()=>EMOJIS[Math.random()*EMOJIS.length|0];
+  for(let tries=0;tries<12;tries++){
+    const tpl=genTpl(B.kind),extra=[pick(),['¬',pick()][Math.random()*2|0]];
+    const rack=shuffle([...tpl.sol,...extra]).map(s=>({id:uidT(),s,orange:false,glitter:false,cashed:true}));
+    const spec={level,kind:B.kind,sec:B.sec,rack,tpl:{rows:tpl.rows,concl:tpl.concl},id:uidT()};
+    // Sicherheitsnetz: Mit den gegebenen Steinen muss sich die Tafel wirklich vervollständigen lassen
+    if(blitzSolve(makeTafel(spec.kind,0,0,'chk',spec.tpl),spec))return spec;
+  }
+  const tpl=genTpl(B.kind);
+  return{level,kind:B.kind,sec:B.sec,rack:tpl.sol.map(s=>({id:uidT(),s,orange:false,glitter:false,cashed:true})),tpl:{rows:tpl.rows,concl:tpl.concl},id:uidT()};
+}
+// Darf dieser Stein dorthin? Nur, wenn die Tafel danach noch vollständig werden kann.
+function blitzValidate(tf,r,k,sym){
+  const row=rowOf(tf,r);row.slots[k]={tile:{s:sym},by:0};
+  const ok=!!blitzSolve(tf,S.blitz.spec);
+  row.slots[k]=null;
+  return ok?null:{msg:'Der passt hier nicht zum Schluss. Probier einen anderen Stein.'};
 }
 function enterBlitz(){
   clearStory();
@@ -1487,35 +1600,42 @@ function enterBlitz(){
   if(S.blitz&&S.blitz.id===sp.id)return;
   const tf=makeTafel(sp.kind,0,0,'blitz',sp.tpl);
   const order=S.online?[meIdx()].filter(i=>i>=0):S.players.map((_,i)=>i);
-  S.blitz={id:sp.id,spec:sp,tf,tfStart:clone(tf),rack:clone(sp.rack),rackStart:clone(sp.rack),results:[],running:false,finished:order.length===0,
-    order,idx:0,player:order[0],label:''};
+  S.blitz={id:sp.id,spec:sp,tf,tfStart:clone(tf),rack:clone(sp.rack),rackStart:clone(sp.rack),results:[],running:false,finished:order.length===0,done:false,
+    placed:{},mine:0,order,idx:0,player:order[0],label:''};
   S.sel=null;cancelMode();
   if(!S.online)S.cur=order[0];
   layout();
   S.blitz.label=S.online?'Los!':`${S.players[order[0]].name}: Los!`;
-  if(!S.tutorial&&!S.online)showModal(`<h3>Blitzrunde!</h3><p>Alle bekommen dieselben Steine und dieselbe Tafel. Wer zuerst einen gültigen Schluss legt, bekommt am meisten Punkte: ${BLITZ_POINTS.slice(0,S.n).map(p=>'+'+p).join(', ')}.</p>
-    <p>Du hast ${sp.sec} Sekunden. ${S.online?'Alle spielen gleichzeitig auf ihrem Gerät.':'Ihr spielt nacheinander, das Gerät wird weitergereicht.'}</p>
-    <div class="stack"><button class="btn primary" data-act="closeModal">Verstanden</button></div>`);
   render();
   if(S.online){
-    onLiveDocs(S.liveDocs||[]);
+    onBlitzBoard((L.liveAll||[]).find(x=>x._id==='blitzboard'));
     if(S.blitz.finished)toast('Du schaust bei dieser Blitzrunde zu.');
     else{blitzCountdown();botBlitz();}      // auf mehreren Geräten: alle starten automatisch gleichzeitig
+  }else if(!S.tutorial){
+    // An einem Gerät: erst Blitzrunde, dann wer anfängt, dann 3, 2, 1 – ohne Knopf und ohne Erklärung
+    blitzCountdown(['Blitzrunde!',S.players[order[0]].name,'3','2','1']);
   }
 }
-function botBlitz(){
+// Der Bot legt mit: in unregelmäßigem Takt ein passender Stein auf ein freies Feld
+async function botBlitz(){
   const bi=S.players.findIndex(p=>p.bot);if(bi<0||meIdx()<0)return;
-  const b=S.blitz,id=b.id,sec=b.spec.sec,lvl=b.spec.level;
-  const fail=Math.random()<.25,ms=fail?sec*1000:Math.round(sec*1000*(.45+Math.random()*.5));
-  setTimeout(()=>{
-    if(!S.blitz||S.blitz.id!==id)return;
-    P.db.doc(`games/${S.code}/live/b_bot`).set({i:bi,ok:!fail,ms,level:lvl,id}).catch(()=>{});
-  },4000+ms);
+  const b=S.blitz,id=b.id;
+  await sleep(4300+Math.random()*1500);
+  while(S.blitz&&S.blitz.id===id&&S.status==='blitz'&&S.blitz.running&&!S.blitz.done){
+    await sleep(2200+Math.random()*3300);
+    const bb=S.blitz;if(!bb||bb.id!==id||!bb.running||bb.done)break;
+    if(Math.random()<.2)continue;                                   // manchmal zögert er
+    const plan=blitzSolve(clone(bb.tf),bb.spec);
+    if(!plan||!plan.length)break;
+    const p=plan[Math.random()*plan.length|0];
+    await blitzShared(p.r,p.k,p.sym,bi);
+  }
 }
-async function blitzCountdown(){
+async function blitzCountdown(words){
   const b=S.blitz;closeModal();
+  words=words||['Blitzrunde!','3','2','1'];
   const el=document.createElement('div');el.className='countdown';$('#fx').appendChild(el);
-  for(const t of ['Blitzrunde!','3','2','1']){
+  for(const t of words){
     if(S.blitz!==b)break;
     el.textContent=t;el.classList.toggle('word',t.length>1);
     el.animate([{transform:'translate(-50%,-50%) scale(.4)',opacity:0},{transform:'translate(-50%,-50%) scale(1.1)',opacity:1,offset:.35},{transform:'translate(-50%,-50%) scale(1)',opacity:1,offset:.75},{transform:'translate(-50%,-50%) scale(.9)',opacity:0}],{duration:900,easing:'ease-out',fill:'forwards'});
@@ -1528,6 +1648,7 @@ function blitzGo(){
   const b=S.blitz;if(!b||b.running||b.finished)return;
   closeModal();
   b.tf=clone(b.tfStart);b.rack=clone(b.rackStart);
+  if(S.online)blitzSync(b.placed||{});else{b.placed={};b.mine=0;}
   b.running=true;b.start=performance.now();b.endAt=b.start+b.spec.sec*1000;
   render();
   clearInterval(b.timer);b.timer=setInterval(tickBlitz,200);
@@ -1538,56 +1659,111 @@ function tickBlitz(){
   const t=$('#blitzTime'),bar=$('#blitzBar');
   if(t)t.textContent=Math.ceil(left/1000)+' s';
   if(bar)bar.style.width=(left/(b.spec.sec*1000)*100)+'%';
-  if(left<=0)blitzDone(false);
+  if(left<=0)blitzEnd(false);
 }
-function checkBlitz(){
-  const b=S.blitz;if(!b||!b.running)return;
-  const ev=evalTafel(b.tf,b.player);
-  if(ev.ok)blitzDone(true,ev);
+/* gemeinsamer Stand der Tafel: Wer zuerst auf ein Feld legt, hat es */
+async function blitzShared(r,k,sym,by){
+  const b=S.blitz;if(!b)return false;
+  const ref=P.db.doc(`games/${S.code}/live/blitzboard`),key=bkey(r,k);
+  try{
+    await P.db.runTransaction(async tx=>{
+      const s=await tx.get(ref);let d=s.exists?s.data():null;
+      if(!d||d.id!==b.id)d={id:b.id,placed:{}};
+      if(d.placed[key])throw new Error('taken');
+      // im Zweifel entscheidet der gemeinsame Stand: Passt der Stein dazu noch?
+      const tmp=clone(b.tfStart);
+      Object.entries(d.placed).forEach(([kk,v])=>{const[rr,k2]=kk.split(':');rowOf(tmp,rr==='c'?'c':+rr).slots[+k2]={tile:{s:v.s},by:v.by};});
+      rowOf(tmp,r).slots[k]={tile:{s:sym},by:by};
+      if(!blitzSolve(tmp,b.spec))throw new Error('wrong');
+      d.placed[key]={s:sym,by,t:Date.now()};
+      tx.set(ref,d);
+    });
+    return true;
+  }catch(e){if(e&&e.message!=='taken')console.warn('blitzShared:',e&&e.message);return false;}
 }
-async function blitzDone(ok,ev){
-  const b=S.blitz;if(!b.running)return;
-  b.running=false;clearInterval(b.timer);
-  const ms=Math.round(performance.now()-b.start);
-  const r={i:b.player,ok,ms,level:b.spec.level,id:b.id};
-  if(ok){b.tf.solved={by:b.player,label:ev.label,story:ev.story};render();
-    await polishTafel({tid:'blitz',label:ev.label,story:ev.story,total:secs(ms)}).catch(()=>{});}
-  if(S.online){
-    b.finished=true;b.mine=r;render();
-    try{await P.db.doc(`games/${S.code}/live/b_${P.uid}`).set(clone(r));}catch(e){dbErr(e);}
-    maybeFinalizeBlitz();
-  }else if(S.tutorial){
-    b.results.push(r);b.finished=true;render();
-  }else{
-    b.results.push(r);
-    b.idx++;
-    if(b.idx<b.order.length){
-      b.player=b.order[b.idx];S.cur=b.player;b.label=`${S.players[b.player].name}: Los!`;
-      b.tf=clone(b.tfStart);b.rack=clone(b.rackStart);render();
-      toast(ok?`Geschafft in ${secs(ms)}! Jetzt ist ${S.players[b.player].name} dran.`:`Die Zeit ist um. Jetzt ist ${S.players[b.player].name} dran.`,'','turn',3000);
-    }else{b.finished=true;render();finalizeBlitz(b.results);}
-  }
-}
-// Online: Ergebnisse der anderen kommen über die live-Sammlung
-function onLiveDocs(docs){
-  S.liveDocs=docs;
+function blitzSync(placed){
   const b=S.blitz;if(!b)return;
-  b.results=docs.filter(d=>d.id&&d.id===b.id&&d.level===b.spec.level&&d.i!=null).map(d=>({i:d.i,ok:d.ok,ms:d.ms}));
-  if(S.screen==='game'&&!S.busy)renderRacks();
-  maybeFinalizeBlitz();
+  b.placed=placed||{};
+  const me=meIdx();
+  for(const [key,v] of Object.entries(b.placed)){
+    const[r0,k0]=key.split(':'),r=r0==='c'?'c':+r0,k=+k0,row=rowOf(b.tf,r),cur=row.slots[k];
+    if(cur&&!cur.tent&&cur.tile.s===v.s&&cur.by===v.by)continue;
+    if(cur&&cur.tent){
+      if(v.by===me&&cur.tile.s===v.s){cur.tent=false;delete cur.from;delete cur.slot;continue;}
+      returnToRack('b',cur.slot,cur.tile);          // jemand war schneller: der Stein geht zurück in die Leiste
+    }
+    row.slots[k]={tile:{id:'b'+key,s:v.s,orange:false,glitter:false,cashed:true},by:v.by};
+  }
+  b.mine=Object.values(b.placed).filter(v=>v.by===me).length;
 }
-let finalizeTimer=null;
-function maybeFinalizeBlitz(){
-  const b=S.blitz;if(!S.online||!b||!inBlitz())return;
-  const all=S.players.every((_,i)=>b.results.some(r=>r.i===i));
-  clearTimeout(finalizeTimer);
-  if(all)finalizeTimer=setTimeout(()=>finalizeBlitz(b.results),600);
-  else if(b.finished)finalizeTimer=setTimeout(()=>finalizeBlitz(b.results),(b.spec.sec+8)*1000);
+function onBlitzBoard(d){
+  const b=S.blitz;if(!b||!inBlitz())return;
+  blitzSync(d&&d.id===b.id?d.placed:{});
+  if(S.screen==='game'&&!S.busy){renderBoard();renderRacks();}
+  blitzCheckDone();
 }
-function nextLevelDoc(d,results,joiners=[]){
-  const lvl=d.level+1,ranked=results.filter(r=>r.ok).sort((a,b)=>a.ms-b.ms);
-  const blitz=ranked.map((r,k)=>({i:r.i,ms:r.ms,pts:BLITZ_POINTS[k]||0}));
-  blitz.forEach(x=>d.players[x.i].score+=x.pts);
+// Eigene, noch nicht bestätigte Steine anmelden (online per Transaktion, lokal sofort)
+async function blitzCommit(){
+  const b=S.blitz;if(!b||!b.running||b.committing)return;
+  b.committing=true;
+  try{
+    for(let guard=0;guard<6;guard++){
+      const pend=[];
+      [...b.tf.rows,b.tf.concl].forEach((row,ri)=>row.slots.forEach((e,k)=>{if(e&&e.tent)pend.push({r:ri===b.tf.rows.length?'c':ri,k,e});}));
+      if(!pend.length)break;
+      for(const p of pend){
+        const ok=S.online?await blitzShared(p.r,p.k,p.e.tile.s,meIdx()):true;
+        const row=rowOf(b.tf,p.r);
+        if(ok){
+          p.e.tent=false;delete p.e.from;delete p.e.slot;p.e.by=meIdx();
+          b.placed[bkey(p.r,p.k)]={s:p.e.tile.s,by:meIdx()};
+        }else{row.slots[p.k]=null;returnToRack('b',p.e.slot,p.e.tile);shakeRow('blitz',p.r);}
+      }
+    }
+  }finally{b.committing=false;}
+  b.mine=Object.values(b.placed).filter(v=>v.by===meIdx()).length;
+  render();blitzCheckDone();
+}
+function blitzCheckDone(){
+  const b=S.blitz;if(!b||b.done||!b.running&&!(S.online&&inBlitz()))return;
+  if(blitzFreeSlots(b.tf).length)return;
+  const ev=evalTafel(b.tf,0);
+  if(ev.ok)blitzComplete(ev);
+}
+async function blitzComplete(ev){
+  const b=S.blitz;if(!b||b.done)return;
+  b.done=true;b.running=false;clearInterval(b.timer);
+  b.tf.solved={by:-1,label:ev.label,story:ev.story};render();
+  await polishTafel({tid:'blitz',label:ev.label,story:ev.story,total:'Brett voll!'}).catch(()=>{});
+  blitzEnd(true);
+}
+// Ende der Runde bzw. des eigenen Versuchs
+function blitzEnd(complete){
+  const b=S.blitz;if(!b||b.ending)return;
+  if(S.online){
+    b.ending=true;b.running=false;b.done=true;b.finished=true;clearInterval(b.timer);render();
+    setTimeout(()=>finalizeBlitz(),complete?800:300);
+    return;
+  }
+  if(S.tutorial){b.running=false;b.done=true;b.finished=true;clearInterval(b.timer);b.results.push({i:b.player,n:b.mine});render();return;}
+  // lokal: nächster Versuch
+  b.running=false;clearInterval(b.timer);
+  b.results.push({i:b.player,n:b.mine});
+  b.idx++;
+  if(b.idx<b.order.length){
+    b.player=b.order[b.idx];S.cur=b.player;b.label=`${S.players[b.player].name}: Los!`;
+    b.tf=clone(b.tfStart);b.rack=clone(b.rackStart);b.placed={};b.mine=0;b.done=false;render();
+    const prev=b.results[b.results.length-1];
+    toast(`${prev.n} Stein${prev.n===1?'':'e'} angelegt.`,'','turn',2200);
+    setTimeout(()=>{if(S.blitz===b&&!b.running&&!b.finished)blitzCountdown([S.players[b.player].name,'3','2','1']);},1300);
+  }else{b.finished=true;b.ending=true;render();
+    const counts=S.players.map((_,i)=>(b.results.find(r=>r.i===i)||{n:0}).n);finalizeBlitz(counts);}
+}
+function nextLevelDoc(d,counts,joiners=[]){
+  const lvl=d.level+1;
+  // Punkte für die Blitzrunde: jeder angelegte Stein zählt
+  const blitz=counts.map((n,i)=>({i,n,pts:n*BLITZ_TILE_PTS})).filter(x=>x.n>0).sort((a,b)=>b.n-a.n);
+  blitz.forEach(x=>{if(d.players[x.i])d.players[x.i].score+=x.pts;});
   // Nachrücker aus Bot-Spielen kommen beim Levelwechsel dazu (höchstens MAX_GROUP Personen)
   joiners.forEach(j=>{
     if(d.players.length>=MAX_GROUP||d.players.some(p=>p.id===j.uid))return;
@@ -1600,18 +1776,21 @@ function nextLevelDoc(d,results,joiners=[]){
     lastMove:{turn:d.turn+1,kind:'level',level:lvl,blitz,by:-1}});
   return d;
 }
-async function finalizeBlitz(results){
+let finalizeTimer=null;
+async function finalizeBlitz(localCounts){
   const b=S.blitz;if(!b||b.finalizing)return;
   b.finalizing=true;
-  const joiners=S.online?(L.liveAll||[]).filter(x=>x._id.startsWith('join_')).map(x=>({uid:x.uid,name:x.name,score:x.score})):[];
-  const d=nextLevelDoc(serialize(),results,joiners);
-  if(!S.online){deserialize(d);S.blitz=null;await levelIntro(d.lastMove,true);return;}
-  const ref=P.db.doc('games/'+S.code);
+  if(!S.online){const d=nextLevelDoc(serialize(),localCounts,[]);deserialize(d);S.blitz=null;await levelIntro(d.lastMove,true);return;}
+  const joiners=(L.liveAll||[]).filter(x=>x._id.startsWith('join_')).map(x=>({uid:x.uid,name:x.name,score:x.score}));
+  const ref=P.db.doc('games/'+S.code),bref=P.db.doc(`games/${S.code}/live/blitzboard`);
   try{
     await P.db.runTransaction(async tx=>{
-      const cur=await tx.get(ref);const c=cur.data();
-      if(!c||c.status!=='blitz'||!c.blitzSpec||c.blitzSpec.id!==b.id)return;
-      tx.set(ref,d);
+      const cur=(await tx.get(ref)).data();
+      if(!cur||cur.status!=='blitz'||!cur.blitzSpec||cur.blitzSpec.id!==b.id)return;
+      const bs=await tx.get(bref),bd=bs.exists?bs.data():null;
+      const counts=Array(cur.players.length).fill(0);
+      if(bd&&bd.id===b.id)Object.values(bd.placed||{}).forEach(v=>{if(counts[v.by]!=null)counts[v.by]++;});
+      tx.set(ref,nextLevelDoc(cur,counts,joiners));
     });
   }catch(e){b.finalizing=false;console.warn(e);}
 }
@@ -1619,9 +1798,9 @@ async function levelIntro(lm,withDeal){
   clearStory();
   S.blitz=null;clearInterval(finalizeTimer);
   const lv=LEVELS[lm.level-1];
-  const rows=(lm.blitz||[]).map((x,k)=>`<div><span>${k+1}.</span><span>${esc(S.players[x.i].name)}</span><span class="p">${secs(x.ms)}, +${x.pts}</span></div>`).join('');
+  const rows=(lm.blitz||[]).map((x,k)=>`<div><span>${k+1}.</span><span>${esc(S.players[x.i].name)}</span><span class="p">${x.n} Stein${x.n===1?'':'e'}, +${x.pts}</span></div>`).join('');
   showModal(`<h3>Level ${lm.level}: ${esc(lv.name)}</h3>
-    ${rows?`<p>Ergebnis der Blitzrunde:</p><div class="rank">${rows}</div>`:'<p>In der Blitzrunde hat diesmal niemand rechtzeitig geschlossen.</p>'}
+    ${rows?`<p>Ergebnis der Blitzrunde:</p><div class="rank">${rows}</div>`:'<p>In der Blitzrunde wurde diesmal kein Stein angelegt.</p>'}
     <p>Neues Brett, neue Steine. ${esc(curP().name)} beginnt.</p>
     <div class="stack"><button class="btn primary" data-act="closeModal">Los geht's</button></div>`);
   layout();
@@ -1766,8 +1945,9 @@ function rulesHTML(){
     <li><b>Modus Ponens:</b> aus X → Y und X folgt Y. <b>Modus Tollens:</b> aus X → Y und ¬Y folgt ¬X.</li>
     <li>Ins Holz gebrannte Steine sind <b>Vorgaben</b>. Sie zeigen, welcher Schluss gedacht ist. In jedes große Feld kommt genau ein Emoji, in die kleinen Felder davor bei Bedarf ein ¬ (nicht). Gelöst ist eine Tafel erst, wenn alle großen Felder belegt sind. Ab Level 4 sind manche Pfeile offen: Dort legst du selbst einen Pfeil →.</li>
     <li>Gelöste Tafeln bleiben liegen. Ist das ganze Brett voll, bekommen <b>alle</b> ${TEAM_BONUS} Punkte, und nach einer <b>Blitzrunde</b> geht es ins nächste, größere Level. Danach werden die Leisten neu verteilt.</li>
-    <li>In der Blitzrunde bekommen alle dieselben Steine. Wer zuerst einen gültigen Schluss legt, bekommt ${BLITZ_POINTS.map(p=>'+'+p).join(', ')} Punkte (nach Reihenfolge).</li>
+    <li>In der <b>Blitzrunde</b> liegen für alle dieselben Steine bereit, und alle legen gleichzeitig an dieselbe Tafel. Wer zuerst auf ein Feld legt, hat es. Jeder angelegte Stein bringt ${BLITZ_TILE_PTS} Punkte.</li>
     <li>Ist der Beutel leer, hat jeder noch einen Zug. Danach endet das Level, auch wenn das Brett nicht voll ist.</li>
+    <li>Du musst einen Schluss nicht allein fertig legen. Angefangene Tafeln bleiben liegen, solange der Schluss noch gelingen kann, und die anderen können weiterlegen. Ein Stein, mit dem es nie mehr klappen würde, geht beim „Zug beenden“ zurück in die Leiste.</li>
     <li>Jeder bekommt die Punkte seiner eigenen Steine in einem Schluss. Wer ihn vollendet, bekommt den Bonus der Tafel, +${CHAIN_BONUS} je weiterem Schritt und +${GLITTER_BONUS} je Glitzerstein.</li>
     <li>Pro Zug legst du mindestens einen und höchstens ${MAX_NEW} neue Steine. Du hast dafür eine begrenzte Zeit (meist 60 Sekunden), danach endet dein Zug automatisch. Eigene Steine aus dem laufenden Zug kannst du verschieben oder zurücknehmen, alles Ältere liegt fest. Vorher darfst du einmal 1 oder 3 Steine tauschen. Orange Steine darfst du aus fremden Leisten nehmen.</li>
     <li>Zeilen, die ${FADE_ROUNDS} Runden lang liegen bleiben, verwehen.</li>
@@ -1891,7 +2071,8 @@ function placeTip(id){
   const t=document.getElementById(id);if(!t||!t.classList.contains('on')||!t._anchor)return;
   const a=t._anchor();if(!a){return;}
   const r=a.getBoundingClientRect(),w=t.offsetWidth,h=t.offsetHeight;
-  const below=t.id==='tip2'?(r.bottom+h+16<innerHeight-120):(r.top-h-16<60),y=below?r.bottom+14:r.top-h-14,x=clamp(8,r.left+r.width/2-w/2,innerWidth-w-8);
+  const minTop=S.tutorial?124:60;
+  const below=t.id==='tip2'?(r.bottom+h+16<innerHeight-120):(r.top-h-16<minTop),y=below?r.bottom+14:r.top-h-14,x=clamp(8,r.left+r.width/2-w/2,innerWidth-w-8);
   t.style.transform=`translate(${x}px,${y}px)`;t.classList.toggle('below',below);
   t.style.setProperty('--ax',clamp(16,r.left+r.width/2-x,w-16)+'px');
 }
@@ -1907,18 +2088,25 @@ function sparksAt(el){
 const TUT_MP={rows:[['🌧️','→','E'],['E']],concl:['E']};
 const TUT_MT={rows:[['🐱','→','E'],['¬','E']],concl:['¬','E']};
 const TUT_NOT={rows:[['n','🌧️','→','🎉'],['n','E']],concl:['E']};
-function tutBoard(kind,tpl,rack){
-  clearStory();
+function tutRack(list){
+  const r=Array(8).fill(null);
+  list.forEach((it,i)=>{const o=typeof it==='string'?{s:it}:it;r[i]=Object.assign(newTile(o.s),{orange:!!o.orange,glitter:!!o.glitter});});
+  return r;
+}
+function tutBoard(kind,tpl,rack,mia){
+  clearStory();S.cur=0;
+  if(mia){S.players=[S.players[0],{id:null,name:'Mia',score:0,rack:tutRack(mia),color:COLORS[1],team:null}];S.n=2;}
+  else if(S.players.length>1){S.players=[S.players[0]];S.n=1;}
   S.tafeln=[makeTafel(kind,0,0,'t0',tpl)];
-  const r=Array(8).fill(null);rack.forEach((sym,i)=>r[i]=Object.assign(newTile(sym),{orange:false,glitter:false}));
+  const r=tutRack(rack);
   S.players[0].rack=r;S.bag=[];S.fresh=new Set(r.filter(Boolean).map(t=>t.id));takeSnap();
   layout();render();
   const el=$('.tafel');if(el)el.animate([{transform:'scale(.6)',opacity:0},{transform:'scale(1.04)',opacity:1,offset:.7},{transform:'scale(1)'}],{duration:500,easing:'ease-out'});
 }
 async function runTutorialFlow(){
   const tid='t0',ring=on=>{$('#turnRing').classList.toggle('on',on);if(on)$('#turnRing rect').style.strokeDashoffset='45';};
-  const place=(r,k,sym,t,sub,ok,side)=>({t,sub,at:()=>slotEl(tid,r,k),ok,side,
-    task:()=>({target:[tid,r,k],goal:()=>slotSym(tid,r,k)===sym,wrong:tutWrong(tid,r,k,sym),hint:()=>fingerHint(0,sym,tid,r,k)})});
+  const place=(r,k,sym,t,sub,ok,side,p=0)=>({t,sub,at:()=>slotEl(tid,r,k),ok,side,
+    task:()=>({target:[tid,r,k],goal:()=>slotSym(tid,r,k)===sym,wrong:tutWrong(tid,r,k,sym),hint:()=>fingerHint(p,sym,tid,r,k)})});
   const endTurn=(ok)=>({t:'Tipp auf „Zug beenden“',at:()=>$('#dock .btn.end'),ok,okAt:()=>$('#score-0'),
     task:()=>({goal:()=>!S.busy&&!!(tafel(tid)||{}).solved,hint:async()=>{await fingerTap($('#dock .btn.end'));fingerHide();}})});
   const phases=[
@@ -1938,8 +2126,16 @@ async function runTutorialFlow(){
       place(1,1,'🌧️','… und dann 🌧️ dahinter','','Genau!'),
       place('c',0,'🎉','Was passiert jetzt?','Leg es hier unten hin','Richtig! Wir feiern 🎉'),
       endTurn('Prima!')]},
-    {steps:[{t:'Blitzrunde! Schnell!',sub:'Die Uhr läuft',at:()=>$('.tafel[data-tid="blitz"]'),blitz:true,
-      task:()=>({goal:()=>S.blitz&&S.blitz.results&&S.blitz.results.length>0})}]}
+    {noRing:true,
+     setup:()=>tutBoard('mini',{rows:[['🌧️','→','🍕'],['🌧️']],concl:['E']},['🐱','☂️','🎉'],[{s:'🍕',orange:true},'☂️','🐱','🎉']),steps:[
+      place('c',0,'🍕','Dir fehlt die Pizza 🍕!','Nimm die orange von Mia','Orange Steine darfst du dem Gegner abnehmen!',
+        {t:'Orange darfst du nehmen',at:()=>$(`.tile[data-p="1"][data-slot="${rackSlotOf(1,'🍕')}"]`)},1),
+      endTurn('Super!')]},
+    {noRing:true,
+     setup:()=>tutBoard('mini',{rows:[['🐱','→','🎉'],['E']],concl:['E']},[{s:'🐱',glitter:true},'🎉','☂️']),steps:[
+      place(1,0,'🐱','Zieh den glitzernden 🐱 hierher','Er funkelt ✨','Glitzernde Steine geben extra Punkte!'),
+      place('c',0,'🎉','Und 🎉 unten hin','','Fast geschafft!'),
+      endTurn('Plus 10 extra für den Glitzerstein!')]}
   ];
   for(const ph of phases){
     if(!S.tutorial)return;
@@ -1949,7 +2145,7 @@ async function runTutorialFlow(){
       if(st.blitz)await tutBlitzStart();
       render();showTip('tip',st.t,st.sub,st.at);
       if(st.side)showTip('tip2',st.side.t,'',st.side.at);
-      if(st===ph.steps[ph.steps.length-1]&&!st.blitz){ring(true);showTip('tip2','Die blaue Linie ist deine Zeit','',()=>$('#turnRing'));}
+      if(st===ph.steps[ph.steps.length-1]&&!st.blitz&&!ph.noRing){ring(true);showTip('tip2','Die blaue Linie ist deine Zeit','',()=>$('#turnRing'));}
       S.tutLive=true;
       const ok=await waitTask(st.task());
       S.tutLive=false;markTarget(null,null,null,false);fingerHide();hideTip('tip2');ring(false);
@@ -1990,7 +2186,7 @@ function positionCoach(){
 }
 function introVoteHTML(){
   if(!S.introCode)return'';
-  const d=L.realDoc,ids=d?d.players.filter(p=>!p.bot).map(p=>p.id):[],v=L.intro||[];
+  const d=L.realDoc,ids=d?d.players.filter(p=>!p.bot&&!isAway(p.id)).map(p=>p.id):[],v=L.intro||[];
   const yes=ids.filter(id=>v.some(x=>x.uid===id&&(x.skip||x.done))).length,me=v.find(x=>x.uid===P.uid);
   return`<div class="vote"><span>Überspringen: ${yes} von ${ids.length} dafür</span><button class="btn" data-act="voteSkip">${me&&me.skip?'Stimme zurückziehen':'Dafür stimmen'}</button></div>`;
 }
@@ -2027,8 +2223,7 @@ function tickTurn(){
 async function timeUp(){
   if(S.drag){if(S.drag.started)finishDrag(S.drag,-1,-1);S.drag=null;}
   S.sel=null;cancelMode();
-  pendingResults().filter(r=>!r.ok).forEach(b=>{const tf=tafel(b.tid);if(tf.concl.locked)return;
-    tf.concl.slots=tf.concl.slots.map(e=>{if(e&&e.tent){returnToRack(e.from,e.slot,e.tile);return null;}return e;});});
+  pendingStates().filter(isBadState).forEach(s=>returnNewTiles(s.tf));
   if(hasNew()){toast('Die Zeit ist um. Was du gelegt hast, bleibt liegen.','','turn',2500);await actEndTurn();}
   else{toast('Die Zeit ist um.','','turn',2000);await passTurn();}
 }
@@ -2036,7 +2231,7 @@ setInterval(tickTurn,250);
 
 // Tutorial beenden: vor einem lokalen Spiel geht es direkt ins Spiel, sonst zurück zum Start
 function endTutorial(){
-  S.tutorial=false;S.tutLive=false;fingerHide();hideTip('tip');hideTip('tip2');markTarget(null,null,null,false);
+  S.tutorial=false;S.tutLive=false;fingerHide();hideTip('tip');hideTip('tip2');markTarget(null,null,null,false);renderTutBanner();
   if(S.blitz)clearInterval(S.blitz.timer);S.blitz=null;S.blitzSpec=null;clearStory();
   $('#turnRing').classList.remove('on');
   if(S.tutMode==='local'&&S.pendingLocal){const p=S.pendingLocal;S.pendingLocal=null;startLocalGame(p.names,p.turnTime);}
@@ -2109,6 +2304,21 @@ setInterval(()=>{
   if(key!==Bt.key){Bt.key=key;Bt.at=performance.now()+2500+Math.random()*2500;Bt.running=false;}
   if(!Bt.running&&performance.now()>=Bt.at&&!modalOpen()){Bt.running=true;botTurn().catch(e=>console.warn(e));}
 },500);
+
+// Wer gerade nicht verbunden ist, hält nur seinen Platz warm und zählt bei Abstimmungen nicht mit
+function isAway(uid){return !!(typeof E!=='undefined'&&E.ev&&E.ev.away&&E.ev.away[uid]);}
+
+// Prüft, ob auf dem Server eine neuere Version liegt (z. B. wenn das Handy noch eine alte Seite zwischengespeichert hat)
+async function checkVersion(){
+  if(location.protocol==='file:')return;
+  try{
+    const r=await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'}),t=await r.text();
+    const m=t.match(/const BUILD='([^']+)'/);if(!m||m[1]===BUILD)return;
+    let done=false;try{done=!!sessionStorage.getItem('ponens-reloaded');}catch(e){}
+    if(S.screen!=='game'&&!done){try{sessionStorage.setItem('ponens-reloaded','1');}catch(e){}location.reload();}
+    else toast('Es gibt eine neue Version. Lade die Seite bitte neu.','Update','',9000);
+  }catch(e){}
+}
 /* ================= Online sync ================= */
 let writeQ=Promise.resolve(),draftQ=Promise.resolve(),draftSent='',draftTimer=null;
 function dbErr(e){
@@ -2149,7 +2359,7 @@ function subscribeGame(code){
     const docs=s.docs.map(d=>Object.assign(clone(d.data()),{_id:d.id}));
     L.liveAll=docs;
     const dr=docs.find(x=>x._id==='draft');S.draft=dr||null;
-    onLiveDocs(docs.filter(x=>x._id.startsWith('b_')));
+    onBlitzBoard(docs.find(x=>x._id==='blitzboard'));
     L.intro=docs.filter(x=>x._id.startsWith('intro_'));if(S.introCode){renderCoachBtns();checkIntro();}
     if(S.screen==='game'&&!S.busy&&activeDraft()){renderRacks();renderBoard();}
   },snapErr));
@@ -2194,7 +2404,7 @@ async function enterGame(d,withDeal){
   showScreen('game');layout();
   if(withDeal)await deal();else{$('#boardHolder').classList.remove('pre');render();}
   if(S.ended)return endGame();
-  if(S.status==='blitz'){enterBlitz();onLiveDocs(S.liveDocs||[]);return;}
+  if(S.status==='blitz'){enterBlitz();return;}
   if(S.status==='intro'){toast('Die Gruppe schaut gerade das Tutorial.','','turn',2500);return;}
   if(isMyTurn())toast(S.turn===1?'Du beginnst. Zieh einen Stein auf ein Feld.':'Du bist dran!','','turn',2600);
   else if(meIdx()<0)toast('Du schaust bei diesem Spiel zu.','','turn',2600);
@@ -2237,10 +2447,14 @@ async function initPlatform(){
     }
   }
   if(P.online)await checkHost();
+  checkVersion();
   P.ready=true;
   renderStart();
   if(S.screen==='mode')renderMode();
   if(S.screen==='play'){renderPlay();subscribeLists();}
+  // Einladungslink (QR-Code): direkt in den Beitritt, nur noch nach dem Namen fragen
+  if((L.eventInvite||L.joinCurrent)&&!S.inviteAsked){S.inviteAsked=true;
+    if(P.online)startJoin(L.eventInvite||'*',{link:true});else{showScreen('play');renderPlay();}}
 }
 function myName(){
   let n='';try{n=localStorage.getItem('ponens-name')||'';}catch(e){}
@@ -2255,14 +2469,9 @@ function readName(){
 function subscribeLists(){
   unsub(listSubs);
   if(!P.online)return;
-  const col=P.db.collection('games');
-
-  if(P.isHost)listSubs.push(P.db.collection('events').where('adminId','==',P.uid).limit(20).onSnapshot(s=>{
-    L.events=s.docs.map(d=>d.data()).filter(e=>e.status!=='ended').sort((a,b)=>b.createdAt-a.createdAt);
-    if(S.screen==='play')renderPlayLists();
-  },snapErr));
-  listSubs.push(col.where('playerIds','array-contains',P.uid).limit(40).onSnapshot(s=>{
-    L.mine=s.docs.map(d=>d.data()).filter(g=>(g.status==='playing'||g.status==='blitz')&&g.v===5).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+  // nur aktiv gehostete Spiele: Anmeldung offen (lobby) oder Plätze zum Wiedereinstieg (closed)
+  listSubs.push(P.db.collection('events').where('status','in',['lobby','closed']).limit(30).onSnapshot(s=>{
+    L.hosted=s.docs.map(d=>d.data()).filter(e=>e.status==='lobby'||e.status==='closed');
     if(S.screen==='play')renderPlayLists();
   },snapErr));
 }
@@ -2276,12 +2485,9 @@ function renderPlay(){
     b.innerHTML=`<div class="note-box">${why}</div><div class="center-btns"><button class="btn primary big" data-act="local">An einem Gerät spielen</button></div>`;
     return;
   }
-  const evInv=L.eventInvite?`<div class="item invite"><div class="t"><b>Du wurdest eingeladen</b><small>Code ${esc(L.eventInvite)}</small></div><button class="btn primary" data-act="joinEvent" data-code="${esc(L.eventInvite)}">Beitreten</button></div>`:'';
-  b.innerHTML=`<label class="field"><span>Dein Name</span><input id="myName" maxlength="14" autocomplete="nickname" value="${esc(myName())}"></label>
-    ${evInv}
-    <div class="codeline"><input id="codeIn" maxlength="6" placeholder="Code" autocomplete="off" autocapitalize="characters" value="${esc(L.eventInvite||'')}"><button class="btn ${evInv?'':'primary'}" data-act="joinCode">Beitreten</button></div>
-    <p class="hintline">Oder scanne den QR-Code der Spielleitung.</p>
-    <div id="playLists"></div>`;
+  b.innerHTML=`<div id="playLists"></div>
+    <div class="or"><span>oder Code eingeben</span></div>
+    <div class="codeline"><input id="codeIn" maxlength="40" placeholder="Code" autocomplete="off" autocapitalize="characters" aria-label="Code"><button class="btn primary" data-act="joinCode">Beitreten</button></div>`;
   renderPlayLists();
 }
 function renderStart(){
@@ -2293,15 +2499,19 @@ function renderStart(){
 }
 function renderPlayLists(){
   const el=$('#playLists');if(!el)return;
-  const mine=L.mine.map(g=>{
-    const others=g.players.filter(p=>p.id!==P.uid).map(p=>p.name).join(', ');
-    const turn=g.players[g.cur]?.id===P.uid?'Du bist dran':`${g.players[g.cur]?.name||''} ist dran`;
-    return`<div class="item"><div class="t"><b>Mit ${esc(others||'dir allein')}</b><small>${esc(turn)}</small></div><button class="btn primary" data-act="resume" data-code="${esc(g.code)}">Öffnen</button></div>`;
-  }).join('');
-  const evs=(L.events||[]).map(e=>`<div class="item"><div class="t"><b>Spiel ${esc(e.code)}</b><small>${e.groups.length} Gruppen</small></div><button class="btn primary" data-act="openEvent" data-code="${esc(e.code)}">Öffnen</button></div>`).join('');
-  el.innerHTML=`${evs?`<div class="list"><h3>Von dir geleitet</h3>${evs}</div>`:''}${mine?`<div class="list"><h3>Deine laufenden Spiele</h3>${mine}</div>`:''}
-`;
+  const now=Date.now(),recent=(L.hosted||[]).filter(e=>now-(e.createdAt||0)<12*3600e3);
+  // eigenes Spiel (nur das neueste) und fremde Spiele, deren Spielleitung gerade online ist
+  const own=recent.filter(e=>e.adminId===P.uid&&now-(e.hostHb||0)<3*3600e3).sort((a,b)=>b.createdAt-a.createdAt).slice(0,1);
+  const others=recent.filter(e=>e.adminId!==P.uid&&now-(e.hostHb||0)<ACTIVE_MS).sort((a,b)=>b.createdAt-a.createdAt);
+  const list=[...own,...others];
+  if(!list.length){el.innerHTML='<p class="empty" style="text-align:center">Gerade läuft kein Spiel, bei dem du mitmachen kannst.</p>';return;}
+  el.innerHTML=`<div class="list"><h3>Laufende Spiele</h3>${list.map(e=>{
+    const free=typeof warmSeats==='function'&&warmSeats(e).length;
+    const isOwn=e.adminId===P.uid;
+    return`<div class="item"><div class="t"><b>${isOwn?'Dein Spiel':'Spiel von '+esc(e.adminName||'jemandem')}</b><small>Code ${esc(e.code)}${free?' · Platz frei':''}</small></div>
+      ${isOwn?`<button class="btn" data-act="openEvent" data-code="${esc(e.code)}">Öffnen</button>`:`<button class="btn primary" data-act="hostedJoin" data-code="${esc(e.code)}">Beitreten</button>`}</div>`;}).join('')}</div>`;
 }
+setInterval(()=>{if(S.screen==='play'&&P.online)renderPlayLists();},10000);
 async function shareInvite(){
   const url=location.origin+location.pathname+'?spiel='+encodeURIComponent(L.lobby.code);
   const text='Spiel mit mir Ponens! ';
@@ -2449,7 +2659,7 @@ async function introVote(patch){
 async function checkIntro(){
   const d=L.realDoc;if(!S.introCode||!d||d.status!=='intro')return;
   const v=L.intro||[];
-  const all=d.players.filter(p=>!p.bot).every(p=>v.some(x=>x.uid===p.id&&(x.skip||x.done)));
+  const all=d.players.filter(p=>!p.bot&&!isAway(p.id)).every(p=>v.some(x=>x.uid===p.id&&(x.skip||x.done)));
   if(!all)return;
   const ref=P.db.doc('games/'+d.code);
   try{await P.db.runTransaction(async tx=>{const c=(await tx.get(ref)).data();if(!c||c.status!=='intro')return;tx.set(ref,{...c,status:'playing',rev:(c.rev||0)+1,updatedAt:Date.now()});});}
@@ -2458,13 +2668,13 @@ async function checkIntro(){
 async function introDone(){
   await introVote({done:true});
   const d=L.realDoc,v=L.intro||[];
-  const wait=d?d.players.filter(p=>!p.bot&&p.id!==P.uid&&!v.some(x=>x.uid===p.id&&(x.skip||x.done))).map(p=>p.name):[];
+  const wait=d?d.players.filter(p=>!p.bot&&!isAway(p.id)&&p.id!==P.uid&&!v.some(x=>x.uid===p.id&&(x.skip||x.done))).map(p=>p.name):[];
   if(wait.length)showModal(`<h3>Gleich geht’s los</h3><p>Warte noch auf: ${wait.map(esc).join(', ')}.</p>`,true);
   checkIntro();
 }
 async function finishIntro(){
   const d=L.realDoc;if(!S.introCode||!d)return;
-  S.introCode=null;S.tutorial=false;S.trunning=false;fingerHide();hideTip('tip');hideTip('tip2');
+  S.introCode=null;S.tutorial=false;S.trunning=false;fingerHide();renderTutBanner();hideTip('tip');hideTip('tip2');
   $('#coach').classList.add('hidden');closeModal();if(S.blitz)clearInterval(S.blitz.timer);S.blitz=null;
   deserialize(d);S.online=true;S.animTurn=d.lastMove?d.lastMove.turn:0;
   showScreen('game');layout();await deal();
@@ -2472,9 +2682,78 @@ async function finishIntro(){
   if(isMyTurn())toast('Du beginnst!','','turn',2500);else toast(`${curP().name} beginnt`,'','turn',2000);
 }
 
+/* ---------- Beitreten: Name erfragen, QR-Code scannen ---------- */
+function askName(title,next){
+  S.nameNext=next;
+  showModal(`<h3>${esc(title)}</h3><label class="field"><span>Dein Name</span><input id="nameIn" maxlength="14" autocomplete="nickname" value="${esc(myName())}"></label>
+    <div class="stack" style="margin-top:12px"><button class="btn primary" data-act="nameOk">Los geht’s</button><button class="btn" data-act="nameCancel">Abbrechen</button></div>`,true);
+  setTimeout(()=>{const i=$('#nameIn');if(i){i.focus();i.select();}},60);
+}
+function nameOk(){
+  const i=$('#nameIn'),n=(i?i.value:'').trim().slice(0,14);
+  if(!n){toast('Gib bitte deinen Namen ein.');return;}
+  try{localStorage.setItem('ponens-name',n);}catch(e){}
+  const f=S.nameNext;S.nameNext=null;closeModal();if(f)f(n);
+}
+// Ist dieses Spiel gerade aktiv? (Spielleitung meldet sich, Anmeldung nicht beendet)
+async function eventActive(code){
+  const s=await P.db.doc('events/'+code).get();if(!s.exists)return false;
+  const e=s.data();return(e.status==='lobby'||e.status==='closed')&&Date.now()-(e.hostHb||0)<ACTIVE_MS;
+}
+// Das aktuelle bzw. zuletzt gehostete laufende Spiel: neueste Spielleitung, die sich gerade meldet
+async function findCurrentCode(){
+  const s=await P.db.collection('events').where('status','in',['lobby','closed']).get(),now=Date.now();
+  const list=s.docs.map(d=>d.data()).filter(e=>(e.status==='lobby'||e.status==='closed')&&now-(e.createdAt||0)<12*3600e3&&now-(e.hostHb||0)<ACTIVE_MS)
+    .sort((a,b)=>(b.hostHb||0)-(a.hostHb||0));
+  return list.length?list[0].code:null;
+}
+// opt.link: Aufruf per QR-Code oder Link. Dann geht es direkt ins Spiel, notfalls ins aktuell laufende, wenn der Code alt ist.
+async function startJoin(code,opt={}){
+  code=String(code||'').trim().toUpperCase();
+  if(opt.link){
+    let ok=false;
+    if(code&&code!=='*'){try{ok=await eventActive(code);}catch(e){}}
+    if(!ok){
+      try{code=await findCurrentCode();}catch(e){code=null;}
+      if(!code){ACT.home();toast('Gerade läuft kein Spiel. Frag die Spielleitung, ob es schon losgeht.','Kein Spiel gefunden','',6500);return;}
+    }
+  }else if(code.length<4){toast('Gib den Code aus vier Buchstaben ein.');return;}
+  askName(opt.link?'Du wurdest eingeladen. Wie heißt du?':'Wie heißt du?',name=>joinEvent(code,name));
+}
+function parseJoinCode(text){
+  text=String(text||'').trim();
+  try{const u=new URL(text),c=u.searchParams.get('event')||u.searchParams.get('spiel');if(c)return c.toUpperCase().slice(0,8);}catch(e){}
+  const m=text.toUpperCase().match(/^[A-Z]{4,6}$/);return m?m[0]:null;
+}
+
+/* ---------- Anwesenheit: Herzschlag ---------- */
+let HB_MS=15000,hbLast=0;
+function sendHeartbeat(){
+  if(!P.online||!E.code||(S.screen!=='event'&&S.screen!=='game')||isEvAdmin())return;
+  hbLast=Date.now();
+  const ref=P.db.doc(`events/${E.code}/people/${P.uid}`);
+  // fehlt die Karte (z. B. nach einem Verbindungsabbruch), wird sie vollständig neu angelegt
+  ref.update({hb:hbLast}).catch(()=>{ref.set({id:P.uid,name:E.myName||myName()||'Spieler',at:hbLast,hb:hbLast}).catch(()=>{});});
+}
+setInterval(()=>{if(Date.now()-hbLast>=HB_MS)sendHeartbeat();},1000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)sendHeartbeat();});
+
+function fixedUrl(){return location.origin+location.pathname+'?join=1';}
+function showQrFixed(){
+  const svg=qrSVG(fixedUrl());
+  showModal(`<h3>Fester QR-Code</h3>${svg?`<div class="qrbig">${svg}</div>`:''}
+    <p style="text-align:center">Dieser Code bleibt immer gleich und führt jeden direkt in dein aktuell laufendes Spiel. Du kannst ihn ausdrucken oder aufhängen.</p>
+    <div class="stack"><button class="btn" data-act="copyFixed">Link kopieren</button><button class="btn primary" data-act="closeModal">Schließen</button></div>`);
+}
+async function copyFixed(){
+  try{await navigator.clipboard.writeText(fixedUrl());toast('Link kopiert.');}catch(e){prompt('Diesen Link kopieren:',fixedUrl());}
+}
+
 /* ================= Spielleitung: Gruppen, Bot, Nachrücken ================= */
 let GROUP_SIZE=3,GROUP_WAIT_MS=30000;     // 3 Personen starten sofort, sonst nach 30 s zu zweit bzw. gegen den Bot
-const E={code:null,ev:null,people:[],games:{},subbed:new Set(),working:false,again:false};
+let HOST_HB_MS=30000,ACTIVE_MS=300000;    // die Spielleitung meldet sich alle 30 s, nach 5 Minuten Stille gilt ihr Spiel als nicht mehr aktiv
+let AWAY_MS=60000,WARM_MS=600000;      // nach 60 s ohne Lebenszeichen gilt jemand als weg, sein Platz bleibt 10 min frei
+const E={code:null,ev:null,people:[],games:{},subbed:new Set(),skipped:new Set(),beat:false,working:false,again:false};
 let eventSubs=[],dashSubs=[];
 const isEvAdmin=()=>!!E.ev&&E.ev.adminId===P.uid;
 async function writeEvent(patch){
@@ -2497,50 +2776,113 @@ async function createEvent(){
   const name=readName();if(!name)return;
   if(!P.isHost){toast('Spiele leiten geht nur mit Zugangscode.');return;}
   const code=makeCode();
-  try{await P.db.doc('events/'+code).set({code,adminId:P.uid,adminName:name,createdAt:Date.now(),status:'lobby',turnTime:DEFAULT_TURN_TIME,groups:[],seq:0,merges:{},v:18});}
+  try{   // Alte Spiele dieser Spielleitung aufräumen: nie gestartete löschen, sehr alte beenden
+    const old=await P.db.collection('events').where('adminId','==',P.uid).get();
+    for(const d of old.docs){const o=d.data(),started=(o.groups||[]).some(g=>g.gameCode);
+      if(o.status==='ended')continue;
+      if(!started)await P.db.doc('events/'+o.code).delete();
+      else if(Date.now()-(o.createdAt||0)>2*3600e3)await P.db.doc('events/'+o.code).update({status:'ended'});}
+  }catch(e){console.warn(e);}
+  try{await P.db.doc('events/'+code).set({code,adminId:P.uid,adminName:name,createdAt:Date.now(),hostHb:Date.now(),status:'lobby',turnTime:DEFAULT_TURN_TIME,groups:[],seq:0,merges:{},v:18});}
   catch(e){return dbErr(e);}
   openEvent(code);
 }
-async function joinEvent(code){
-  const name=readName();if(!name)return;
-  L.eventInvite=null;try{history.replaceState(null,'',location.pathname);}catch(e){}
+// Freie (warmgehaltene) Plätze: jemand ist kürzlich rausgeflogen, seine Gruppe spielt weiter
+function warmSeats(ev){
+  const now=Date.now(),out=[];
+  Object.entries(ev.away||{}).forEach(([uid,a])=>{
+    if(now-a.since>WARM_MS)return;
+    const g=(ev.groups||[]).find(g=>g.gameCode===a.gc);if(!g||g.bot||g.merged)return;
+    out.push({uid,gc:a.gc,group:g.name,name:a.name,since:a.since});
+  });
+  return out.sort((x,y)=>(y.uid===P.uid)-(x.uid===P.uid)||x.since-y.since);
+}
+async function joinEvent(code,name){
+  if(!name)return;
+  L.eventInvite=null;L.joinCurrent=false;try{history.replaceState(null,'',location.pathname);}catch(e){}
+  let ev;
   try{
     const s=await P.db.doc('events/'+code).get();
-    if(!s.exists){toast('Zu diesem Code gibt es kein Spiel.');return;}
-    if(s.data().status!=='lobby'){toast('Die Anmeldung für dieses Spiel ist geschlossen.');return;}
-    await P.db.doc(`events/${code}/people/${P.uid}`).set({id:P.uid,name,at:Date.now()});
+    if(!s.exists){ACT.home();toast('Zu diesem Code gibt es kein Spiel.');return;}
+    ev=s.data();
   }catch(e){return dbErr(e);}
+  const mine=(ev.groups||[]).find(g=>g.gameCode&&g.members.includes(P.uid));   // eigener Platz ist noch reserviert
+  if(!mine){
+    const warm=warmSeats(ev);
+    if(warm.length){await showSeatPicker(ev,warm,name,code);return;}
+    if(ev.status!=='lobby'){ACT.home();toast('Die Anmeldung für dieses Spiel ist geschlossen.');return;}
+  }
+  await enterEvent(code,name);
+}
+async function enterEvent(code,name){
+  E.myName=name;
+  try{await P.db.doc(`events/${code}/people/${P.uid}`).set({id:P.uid,name,at:Date.now(),hb:Date.now()});}catch(e){return dbErr(e);}
   openEvent(code);
 }
+async function showSeatPicker(ev,warm,name,code){
+  S.pick={code,name,open:ev.status==='lobby'};
+  const infos=await Promise.all(warm.map(async w=>{
+    try{const s=await P.db.doc('games/'+w.gc).get(),d=s.data();
+      return{...w,level:d.level,present:d.players.filter(p=>!p.bot&&p.id!==w.uid&&!(ev.away||{})[p.id]).map(p=>p.name)};}
+    catch(e){return{...w,present:[]};}
+  }));
+  showModal(`<h3>Hier ist ein Platz frei</h3><p>Diese Gruppen spielen weiter und halten einen Platz für dich frei.</p>
+    <div class="seatlist">${infos.map(i=>`<div class="seatcard${i.uid===P.uid?' mine':''}"><div class="sc-t"><b>${esc(i.group)}</b>
+      <small>Level ${i.level||'?'}${i.present.length?' · '+i.present.map(esc).join(', '):''}</small>${i.uid===P.uid?'<em>Dein alter Platz</em>':''}</div>
+      <button class="btn primary" data-act="takeSeat" data-gc="${esc(i.gc)}" data-seat="${esc(i.uid)}">Hier mitspielen</button></div>`).join('')}</div>
+    <div class="stack">${ev.status==='lobby'?'<button class="btn" data-act="joinNew">Lieber neu einsteigen</button>':''}<button class="btn" data-act="nameCancel">Abbrechen</button></div>`,true);
+}
+async function takeSeat(gc,seatUid){
+  const pk=S.pick;if(!pk)return;
+  closeModal();
+  E.myName=pk.name;
+  try{
+    await P.db.runTransaction(async tx=>{
+      const ref=P.db.doc('games/'+gc),s=await tx.get(ref),d=s.data();
+      const i=d?d.players.findIndex(p=>p.id===seatUid):-1;
+      if(i<0||d.status==='ended')throw new Error('taken');
+      d.players[i].id=P.uid;d.players[i].name=pk.name;
+      d.playerIds=d.players.map(p=>p.id).filter(Boolean);d.rev=(d.rev||0)+1;d.updatedAt=Date.now();
+      tx.set(ref,d);
+    });
+    await P.db.doc(`events/${pk.code}/people/${P.uid}`).set({id:P.uid,name:pk.name,at:Date.now(),hb:Date.now()});
+  }catch(e){toast('Der Platz ist leider schon vergeben.','Zu spät');return;}
+  S.pick=null;openEvent(pk.code);subscribeGame(gc);
+}
 async function joinByCode(){
-  const i=$('#codeIn'),code=(i?i.value:'').trim().toUpperCase();
-  if(code.length<4){toast('Gib den Code aus vier Buchstaben ein.');return;}
-  joinEvent(code);
+  const i=$('#codeIn'),raw=i?i.value:'';
+  startJoin(parseJoinCode(raw)||raw);
 }
 function openEvent(code){
   unsub(listSubs);unsub(eventSubs);unsub(dashSubs);
-  Object.assign(E,{code,ev:null,people:[],games:{},subbed:new Set()});
+  Object.assign(E,{code,ev:null,people:[],games:{},subbed:new Set(),skipped:new Set(),beat:false,sig:null});
   showScreen('event');renderEvent();
   eventSubs.push(P.db.doc('events/'+code).onSnapshot(s=>{
     if(!s.exists){toast('Das Spiel wurde aufgelöst.');ACT.home();return;}
-    E.ev=s.data();onEventUpdate();
+    E.ev=s.data();
+    const sig=JSON.stringify({...E.ev,hostHb:0});
+    if(sig===E.sig)return;      // nur ein Lebenszeichen der Spielleitung: nichts neu zeichnen
+    E.sig=sig;onEventUpdate();
   },snapErr));
   eventSubs.push(P.db.collection(`events/${code}/people`).onSnapshot(s=>{
+    const prev=E.people.map(p=>p.id+'|'+p.name).join(',');
     E.people=s.docs.map(d=>d.data()).sort((a,b)=>a.at-b.at);
     if(isEvAdmin())autoGroups();
-    renderEventScreens();
+    if(E.people.map(p=>p.id+'|'+p.name).join(',')!==prev)renderEventScreens();
   },snapErr));
 }
 function renderEventScreens(){if(S.screen==='event')renderEvent();if(S.screen==='dash')renderDash();}
 function onEventUpdate(){
   const ev=E.ev;
   if(isEvAdmin()){
+    if(!E.beat){E.beat=true;hostBeat();}
     if(S.screen==='event')showScreen('dash');
     ev.groups.forEach(g=>{if(g.gameCode&&!E.subbed.has(g.gameCode)){E.subbed.add(g.gameCode);
       dashSubs.push(P.db.doc('games/'+g.gameCode).onSnapshot(s=>{E.games[g.gameCode]=s.exists?s.data():null;if(S.screen==='dash')renderDash();},snapErr));}});
     autoGroups();renderEventScreens();return;
   }
   // Wartet in einem Bot-Spiel auf einen Platz in einer Gruppe?
+  if(S.introCode)checkIntro();
   const m=(ev.merges||{})[P.uid];
   if(m&&S.screen==='game'&&S.code===m.from&&S.mergeTo!==m.to){S.mergeTo=m.to;watchMerge(m.to);}
   const g=ev.groups.find(g=>g.members.includes(P.uid));
@@ -2575,7 +2917,7 @@ async function autoGroups(){
   if(E.working){E.again=true;return;}
   E.working=true;
   try{
-    const ev=clone(E.ev),now=Date.now(),present=new Set(E.people.map(p=>p.id));let ch=false;
+    const ev=clone(E.ev),now=Date.now(),present=new Set(E.people.filter(p=>now-(p.hb||p.at||0)<AWAY_MS).map(p=>p.id));let ch=false,toSkip=[];
     ev.seq=ev.seq||0;
     // 1) Wer sich abgemeldet hat, verlässt seine wartende Gruppe
     ev.groups.forEach(g=>{if(!g.gameCode){const n=g.members.filter(id=>present.has(id));if(n.length!==g.members.length){g.members=n;ch=true;}}});
@@ -2584,7 +2926,7 @@ async function autoGroups(){
     if(ev.status==='lobby'){
       const assigned=new Set(ev.groups.flatMap(g=>g.members));
       E.people.forEach(p=>{
-        if(assigned.has(p.id))return;
+        if(assigned.has(p.id)||!present.has(p.id))return;
         let g=ev.groups.find(g=>!g.gameCode&&g.members.length<GROUP_SIZE);
         if(!g){ev.seq++;g={id:'g'+ev.seq,name:'Gruppe '+ev.seq,members:[]};ev.groups.push(g);}
         g.members.push(p.id);ch=true;
@@ -2615,7 +2957,37 @@ async function autoGroups(){
       if(!targets.length)break;
       merges[s.members[0]]={to:targets[0].g.gameCode,from:s.gameCode};ch=true;
     }
-    if(ch)await writeEvent({groups:ev.groups,seq:ev.seq,merges});
+    // 5) Anwesenheit: Wer lange nichts von sich hören lässt, gilt als weg. Sein Platz bleibt warm.
+    const away=clone(ev.away||{});
+    for(const g of ev.groups){
+      if(!g.gameCode||g.bot||g.merged)continue;
+      const d=E.games[g.gameCode];if(!d)continue;
+      if(d.status!=='ended'){      // Platz wurde übernommen: Mitgliederliste angleichen
+        const ids=d.players.filter(p=>!p.bot).map(p=>p.id);
+        const gone=g.members.filter(id=>!ids.includes(id)),added=ids.filter(id=>!g.members.includes(id));
+        if(gone.length&&gone.length===added.length){g.members=g.members.map(id=>gone.includes(id)?added[gone.indexOf(id)]:id);ch=true;}
+      }
+      for(const p of d.players){
+        if(p.bot)continue;
+        const pe=E.people.find(x=>x.id===p.id),last=pe?(pe.hb||pe.at||0):0;
+        const gone=d.status!=='ended'&&now-last>AWAY_MS;
+        if(gone&&!away[p.id])away[p.id]={since:now,gc:g.gameCode,name:p.name};
+        if(!gone&&away[p.id]&&away[p.id].gc===g.gameCode)delete away[p.id];
+      }
+    }
+    for(const [uid,a] of Object.entries(away)){const d=E.games[a.gc];if(!d||d.status==='ended'||!d.players.some(p=>p.id===uid))delete away[uid];}
+    if(JSON.stringify(away)!==JSON.stringify(ev.away||{})){ev.away=away;ch=true;}
+    // 6) Ist, wer am Zug ist, weg (und nicht die ganze Gruppe), wird sein Zug übersprungen. Die anderen spielen weiter.
+    for(const g of ev.groups){
+      if(!g.gameCode||g.bot||g.merged)continue;
+      const d=E.games[g.gameCode];if(!d||d.status!=='playing')continue;
+      const cp=d.players[d.cur];if(!cp||cp.bot||!away[cp.id])continue;
+      if(d.players.filter(p=>!p.bot).every(p=>away[p.id]))continue;
+      const key=g.gameCode+':'+d.turn;if(E.skipped.has(key))continue;
+      E.skipped.add(key);toSkip.push(g.gameCode);
+    }
+    if(ch)await writeEvent({groups:ev.groups,seq:ev.seq,merges,away:ev.away||{}});
+    for(const gc of toSkip)await adminSkip(gc,true);
   }finally{E.working=false;if(E.again){E.again=false;autoGroups();}}
 }
 async function startGroupNow(gid){
@@ -2695,7 +3067,7 @@ function groupInfo(g){
   }
   if(!d)return{chip:'Lädt …',cls:'',meta:'',players:[]};
   const solved=(d.tafeln||[]).filter(t=>t.solved).length,total=(d.tafeln||[]).length;
-  const players=d.players.map((p,i)=>({name:p.name,bot:p.bot,score:p.score,turn:d.status==='playing'&&i===d.cur,
+  const players=d.players.map((p,i)=>({name:p.name,bot:p.bot,score:p.score,turn:d.status==='playing'&&i===d.cur,away:!!(ev.away||{})[p.id],
     merging:(ev.merges||{})[p.id]&&((E.games[(ev.merges[p.id]||{}).to]||{}).groupName||'')}));
   if(d.status==='ended')return{chip:'Fertig',cls:'over',meta:`Endstand nach Level ${d.level}`,players,d};
   if(d.status==='intro')return{chip:'Tutorial',cls:'intro',meta:'Die Gruppe schaut das Tutorial',players,d};
@@ -2718,7 +3090,7 @@ function renderDash(){
       <button class="btn" data-act="endGroup" data-code="${esc(g.gameCode)}">Beenden</button>`;
     else if(d)btns=`<button class="btn" data-act="watchGroup" data-code="${esc(g.gameCode)}">Ansehen</button>`;
     const prog=info.total?`<div class="gprog"><i style="width:${info.solved/info.total*100}%"></i></div>`:'';
-    const pl=info.players.map(p=>`<div class="${p.empty?'emptyseat':''}${p.turn?' on':''}"><span class="turn">${p.turn?'▶':''}</span><span>${p.bot?'🤖 ':''}${esc(p.name)}${p.merging!==undefined&&p.merging!==false&&p.merging!==''?` <small>→ ${esc(p.merging)}</small>`:''}</span>${p.score!=null?`<b>${p.score}</b>`:''}</div>`).join('');
+    const pl=info.players.map(p=>`<div class="${p.empty?'emptyseat':''}${p.turn?' on':''}"><span class="turn">${p.turn?'▶':''}</span><span>${p.bot?'🤖 ':''}${esc(p.name)}${p.away?' 💤 <small>Platz frei</small>':''}${p.merging!==undefined&&p.merging!==false&&p.merging!==''?` <small>→ ${esc(p.merging)}</small>`:''}</span>${p.score!=null?`<b>${p.score}</b>`:''}</div>`).join('');
     return`<div class="gcard ${info.cls}">
       <div class="gh"><b>${esc(g.name)}</b><span class="gst">${esc(info.chip)}</span></div>
       <div class="gmeta">${info.meta}</div>${prog}
@@ -2729,7 +3101,7 @@ function renderDash(){
   all.sort((a,b)=>b.score-a.score);
   b.innerHTML=`<h2>Spielleitung</h2>
     <div class="code">${esc(ev.code)}</div>
-    ${open?qrBlock('event',ev.code)+`<button class="btn" data-act="shareEvent" style="align-self:center">Einladungslink teilen</button>
+    ${open?qrBlock('event',ev.code)+`<div class="row-btns"><button class="btn" data-act="shareEvent">Einladungslink teilen</button><button class="btn" data-act="qrFixed">Fester QR-Code</button></div>
       ${timeSel(ev.turnTime??DEFAULT_TURN_TIME,'eventTime')}
       <p class="hintline">Wer beitritt, kommt automatisch in eine Gruppe. Zu dritt geht es sofort los, sonst nach ${Math.round(GROUP_WAIT_MS/1000)} Sekunden zu zweit oder gegen einen Bot. Lass diese Seite dafür geöffnet.</p>`
       :'<p class="hintline">Die Anmeldung ist geschlossen.</p>'}
@@ -2743,11 +3115,11 @@ function renderDash(){
       <button class="linkbtn" data-act="closeEvent">Spiel auflösen</button>
       <button class="linkbtn" data-act="home">Zum Hauptmenü</button></div>`;
 }
-async function adminSkip(gc){
+async function adminSkip(gc,quiet){
   const d=clone(E.games[gc]);if(!d||d.status!=='playing')return;
   const mover=d.cur;d.passes=(d.passes||0)+1;d.cur=(d.cur+1)%d.players.length;d.turn++;d.rev++;d.exchanged=false;d.updatedAt=Date.now();
   d.lastMove={turn:d.turn,by:mover,skipped:true,placed:[],solved:[],faded:[]};
-  try{await P.db.doc('games/'+gc).set(d);toast(`Der Zug von ${d.players[mover].name} wurde übersprungen.`);}catch(e){dbErr(e);}
+  try{await P.db.doc('games/'+gc).set(d);if(!quiet)toast(`Der Zug von ${d.players[mover].name} wurde übersprungen.`);}catch(e){dbErr(e);}
 }
 async function adminEndGame(gc,quiet){
   const d=E.games[gc];if(!d||d.status==='ended')return;
@@ -2764,6 +3136,14 @@ setInterval(()=>{
   if(isEvAdmin()&&E.ev&&E.ev.status!=='ended')autoGroups();
   $$('[data-dl]').forEach(el=>{el.textContent=leftText(+el.dataset.dl-Date.now());});
 },1000);
+
+// Lebenszeichen der Spielleitung: Nur Spiele, deren Spielleitung gerade da ist, erscheinen im Beitreten-Menü
+function hostBeat(){
+  if(!isEvAdmin()||!E.ev||E.ev.status==='ended')return;
+  const t=Date.now();E.ev.hostHb=t;
+  P.db.doc('events/'+E.code).update({hostHb:t}).catch(()=>{});
+}
+setInterval(hostBeat,HOST_HB_MS);
 
 /* ================= Ereignisse ================= */
 const ACT={
@@ -2792,7 +3172,7 @@ const ACT={
   go(){const names=$$('#names input').map((i,k)=>i.value.trim()||'Spieler '+(k+1));
     S.pendingLocal={names,turnTime:S.localTime??DEFAULT_TURN_TIME};startTutorial('local');},
   tutSkip(){if(S.tutorial&&!S.introCode)endTutorial();},
-  home(){closeModal();fingerHide();hideTip('tip');hideTip('tip2');S.tutorial=false;S.introCode=null;unsub(gameSubs);unsub(listSubs);unsub(eventSubs);unsub(dashSubs);E.ev=null;if(S.blitz)clearInterval(S.blitz.timer);S.blitz=null;S.tutorial=false;S.ended=false;S.players=null;S.online=false;$('#coach').classList.add('hidden');$('#toasts').innerHTML='';showScreen('start');},
+  home(){closeModal();fingerHide();hideTip('tip');hideTip('tip2');S.tutorial=false;S.introCode=null;renderTutBanner();unsub(gameSubs);unsub(listSubs);unsub(eventSubs);unsub(dashSubs);E.ev=null;if(S.blitz)clearInterval(S.blitz.timer);S.blitz=null;S.tutorial=false;S.ended=false;S.players=null;S.online=false;$('#coach').classList.add('hidden');$('#toasts').innerHTML='';showScreen('start');},
   again(){startLocalGame(S.players.map(p=>p.name),S.turnTime);},
   tutStart(){S.tutorial=false;$('#coach').classList.add('hidden');fingerHide();ACT.home();},
   coachNext(){coachNext();},
@@ -2820,7 +3200,13 @@ const ACT={
   blitzGo(){blitzGo();},
   cancel(){if(userOK()){cancelMode();render();}},
   createEvent(){if(P.online)createEvent();},
-  joinEvent(b){if(P.online)joinEvent(b.dataset.code);},
+  nameOk(){nameOk();},
+  qrFixed(){showQrFixed();},
+  copyFixed(){copyFixed();},
+  nameCancel(){closeModal();S.pick=null;L.eventInvite=null;L.joinCurrent=false;if(S.screen==='event'&&!E.ev)ACT.home();},
+  hostedJoin(b){if(P.online)startJoin(b.dataset.code);},
+  takeSeat(b){takeSeat(b.dataset.gc,b.dataset.seat);},
+  joinNew(){const pk=S.pick;closeModal();if(pk)enterEvent(pk.code,pk.name);},
   joinCode(){if(P.online)joinByCode();},
   openEvent(b){openEvent(b.dataset.code);},
   shareEvent(){shareEvent();},
@@ -2856,17 +3242,22 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('contextmenu',e=>{if(e.target.closest('#board,.rack'))e.preventDefault();});
 document.addEventListener('keydown',e=>{
-  if(e.target.tagName==='INPUT'){if(e.key==='Enter'){if(S.screen==='setup')ACT.go();else if(S.screen==='play'&&P.online){if(e.target.id==='codeIn')joinByCode();else createGame();}}return;}
+  if(e.target.tagName==='INPUT'){if(e.key==='Enter'&&e.target.id==='nameIn'){nameOk();return;}if(e.key==='Enter'){if(S.screen==='setup')ACT.go();else if(S.screen==='play'&&P.online){if(e.target.id==='codeIn')joinByCode();else createGame();}}return;}
   if(e.key==='Escape'){if(!$('#modal').classList.contains('hidden')&&!$('#modal').dataset.locked)return closeModal();
     if(userOK()){S.sel=null;cancelMode();render();}}
   if(e.key==='Enter'||e.key===' '){const t=e.target.closest?.('.tile[data-p]');if(t&&userOK()){e.preventDefault();actSelect(t.dataset.p==='b'?'b':+t.dataset.p,+t.dataset.slot);}}
 });
 let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(S.screen==='game'){layout();render();}},120);});
 
-{const q=new URLSearchParams(location.search),inv=q.get('spiel'),ev=q.get('event');if(inv)L.invite=inv.toUpperCase().slice(0,8);if(ev)L.eventInvite=ev.toUpperCase().slice(0,8);}
-if(L.invite||L.eventInvite){showScreen('play');renderPlay();}else showScreen('start');
+{const q=new URLSearchParams(location.search),inv=q.get('spiel'),ev=q.get('event');
+  if(inv)L.invite=inv.toUpperCase().slice(0,8);
+  if(ev)L.eventInvite=ev.toUpperCase().slice(0,8);
+  if(q.has('join')||q.has('beitreten'))L.joinCurrent=true;}
+if(L.eventInvite||L.joinCurrent){showScreen('event');renderEvent();}else showScreen('start');
 renderStart();
 initPlatform();
+
+{const v=document.getElementById('ver');if(v)v.textContent='Version '+BUILD;}
 </script>
 </body>
 </html>
