@@ -682,6 +682,17 @@ body{background:
 .countdown.word{font-size:min(54px,12vw);max-width:94vw;overflow:hidden;text-overflow:ellipsis}
 
 .ver{position:fixed;bottom:8px;left:0;right:0;text-align:center;font-size:11px;color:var(--muted);opacity:.65;pointer-events:none}
+
+#levelcard{position:fixed;left:50%;top:62px;z-index:55;width:min(420px,92vw);transform:translateX(-50%) translateY(-14px);opacity:0;pointer-events:none;
+  background:var(--card);border-radius:20px;box-shadow:0 14px 40px rgba(40,20,5,.32);padding:14px 16px 12px;transition:opacity .4s,transform .4s cubic-bezier(.3,1.3,.5,1)}
+#levelcard.on{opacity:1;transform:translateX(-50%);pointer-events:auto;cursor:pointer}
+#levelcard h3{margin:0 0 6px;font-family:var(--serif);font-size:20px;letter-spacing:-.02em}
+#levelcard .lc-sub{font-size:13.5px;color:var(--muted);margin:2px 0 6px}
+#levelcard .rank{margin-bottom:6px;gap:6px}
+#levelcard .rank div{padding:8px 12px;font-size:14px}
+#levelcard .lc-bar{height:4px;border-radius:2px;background:var(--chip);overflow:hidden;margin-top:8px}
+#levelcard .lc-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--brass2),var(--brass1));transform-origin:left;animation:lcbar var(--dur,5s) linear forwards}
+@keyframes lcbar{from{transform:scaleX(1)}to{transform:scaleX(0)}}
 </style>
 </head>
 <body>
@@ -772,7 +783,7 @@ body{background:
 </div>
 
 <script>
-const BUILD='20261005-0543';
+const BUILD='20261005-0730';
 'use strict';
 /* ================= Helpers ================= */
 const $=(s,e=document)=>e.querySelector(s), $$=(s,e=document)=>[...e.querySelectorAll(s)];
@@ -1117,10 +1128,13 @@ function controlsHTML(){
     <button class="btn" data-act="cancel">Abbrechen</button><button class="btn primary" data-act="exgo" ${ok?'':'disabled'}>Tauschen</button></div>`;
   }
   const dirty=hasNew()||S.moves>0,canEx=!S.exchanged&&!dirty&&S.bag.length>0;
-  return`<div class="controls">${statusHTML()}
-    ${dirty?'':`<button class="btn" data-act="ex1" ${canEx?'':'disabled'}>1 tauschen</button><button class="btn" data-act="ex3" ${canEx&&S.bag.length>=3?'':'disabled'}>3 tauschen</button>`}
-    <button class="btn icon" data-act="undo" title="Alles zurücknehmen" aria-label="Alles zurücknehmen" ${dirty?'':'disabled'}>↺</button>
+  if(dirty)return`<div class="controls">${statusHTML()}
+    <button class="btn icon" data-act="undo" title="Alles zurücknehmen" aria-label="Alles zurücknehmen">↺</button>
     <button class="btn primary end" data-act="end">Zug beenden</button>
+  </div>`;
+  return`<div class="controls">
+    <button class="btn" data-act="ex1" ${canEx?'':'disabled'}>1 tauschen</button><button class="btn" data-act="ex3" ${canEx&&S.bag.length>=3?'':'disabled'}>3 tauschen</button>
+    ${S.tutorial?'':'<button class="btn" data-act="nofit" title="Wenn wirklich kein Stein sinnvoll passt">Nichts passt</button>'}
   </div>`;
 }
 const activeDraft=()=>(S.online&&S.status==='playing'&&!isMyTurn()&&S.draft&&S.draft.turn===S.turn&&!S.ended)?S.draft:null;
@@ -1385,7 +1399,7 @@ async function playMove(lm){
 }
 function turnNotice(lm){
   if(S.tutorial||S.ended||S.status!=='playing')return;
-  if(lm&&lm.skipped)toast(`${S.players[lm.by].name} hat ausgesetzt.`);
+  if(lm&&lm.skipped)toast(lm.reason==='nofit'?`${S.players[lm.by].name}: nichts passt.`:`${S.players[lm.by].name} hat ausgesetzt.`);
   if(S.online&&isMyTurn()){
     toast('Du bist dran!','','turn',2200);navigator.vibrate?.(30);
     if(document.hidden)document.title='● Du bist dran – Ponens';
@@ -1522,11 +1536,11 @@ async function actEndTurn(){
   takeSnap();S.busy=false;
   afterMove(lm);
 }
-async function passTurn(){
+async function passTurn(reason){
   closeModal();actUndo();
   const mover=S.cur;S.passes++;
   tickLastCall();
-  const lm={turn:S.turn+1,by:mover,skipped:true,placed:[],solved:[],faded:[]};
+  const lm={turn:S.turn+1,by:mover,skipped:true,reason:reason||null,placed:[],solved:[],faded:[]};
   if(S.passes>=S.n*2&&S.lastCall==null)S.lastCall=0;  // alle hängen fest: Level beenden
   const levelOver=finishLevelIfDue(lm);
   if(!levelOver){S.cur=(S.cur+1)%S.n;S.exchanged=false;}
@@ -1794,15 +1808,26 @@ async function finalizeBlitz(localCounts){
     });
   }catch(e){b.finalizing=false;console.warn(e);}
 }
-async function levelIntro(lm,withDeal){
-  clearStory();
-  S.blitz=null;clearInterval(finalizeTimer);
+// Kurze Ergebniskarte nach der Blitzrunde. Sie blendet sich selbst aus und blockiert nichts:
+// Austeilen, Bot und Zugzeit laufen sofort weiter. Ein Tipp schließt sie früher.
+function showLevelCard(lm){
   const lv=LEVELS[lm.level-1];
-  const rows=(lm.blitz||[]).map((x,k)=>`<div><span>${k+1}.</span><span>${esc(S.players[x.i].name)}</span><span class="p">${x.n} Stein${x.n===1?'':'e'}, +${x.pts}</span></div>`).join('');
-  showModal(`<h3>Level ${lm.level}: ${esc(lv.name)}</h3>
-    ${rows?`<p>Ergebnis der Blitzrunde:</p><div class="rank">${rows}</div>`:'<p>In der Blitzrunde wurde diesmal kein Stein angelegt.</p>'}
-    <p>Neues Brett, neue Steine. ${esc(curP().name)} beginnt.</p>
-    <div class="stack"><button class="btn primary" data-act="closeModal">Los geht's</button></div>`);
+  const rows=(lm.blitz||[]).map((x,k)=>`<div><span>${k+1}.</span><span>${esc(S.players[x.i]?S.players[x.i].name:'?')}</span><span class="p">${x.n} Stein${x.n===1?'':'e'}, +${x.pts}</span></div>`).join('');
+  const ms=rows?6500:3800;
+  let el=$('#levelcard');if(!el){el=document.createElement('div');el.id='levelcard';document.body.appendChild(el);}
+  clearTimeout(el._t);
+  el.style.setProperty('--dur',ms+'ms');
+  el.innerHTML=`<h3>Level ${lm.level}: ${esc(lv.name)}</h3>
+    ${rows?`<div class="lc-sub">Blitzrunde</div><div class="rank">${rows}</div>`:'<div class="lc-sub">In der Blitzrunde wurde diesmal kein Stein angelegt.</div>'}
+    <div class="lc-sub">${esc(curP().name)} beginnt.</div><div class="lc-bar"><i></i></div>`;
+  el.classList.remove('on');void el.offsetWidth;el.classList.add('on');
+  const hide=()=>{el.classList.remove('on');};
+  el.onclick=hide;el._t=setTimeout(hide,ms);
+}
+async function levelIntro(lm,withDeal){
+  clearStory();closeModal();
+  S.blitz=null;clearInterval(finalizeTimer);
+  showLevelCard(lm);
   layout();
   if(withDeal)await deal();else render();
 }
@@ -1949,6 +1974,7 @@ function rulesHTML(){
     <li>Ist der Beutel leer, hat jeder noch einen Zug. Danach endet das Level, auch wenn das Brett nicht voll ist.</li>
     <li>Du musst einen Schluss nicht allein fertig legen. Angefangene Tafeln bleiben liegen, solange der Schluss noch gelingen kann, und die anderen können weiterlegen. Ein Stein, mit dem es nie mehr klappen würde, geht beim „Zug beenden“ zurück in die Leiste.</li>
     <li>Jeder bekommt die Punkte seiner eigenen Steine in einem Schluss. Wer ihn vollendet, bekommt den Bonus der Tafel, +${CHAIN_BONUS} je weiterem Schritt und +${GLITTER_BONUS} je Glitzerstein.</li>
+    <li><b>Nichts passt:</b> Kannst du wirklich keinen Stein sinnvoll legen (auch keinen orangen von den anderen), tippst du auf „Nichts passt“. Das Spiel prüft es nach. Stimmt es, tauscht es bis zu 3 Steine für dich und beendet deinen Zug sofort. Passt doch noch etwas, zeigt es dir, was.</li>
     <li>Pro Zug legst du mindestens einen und höchstens ${MAX_NEW} neue Steine. Du hast dafür eine begrenzte Zeit (meist 60 Sekunden), danach endet dein Zug automatisch. Eigene Steine aus dem laufenden Zug kannst du verschieben oder zurücknehmen, alles Ältere liegt fest. Vorher darfst du einmal 1 oder 3 Steine tauschen. Orange Steine darfst du aus fremden Leisten nehmen.</li>
     <li>Zeilen, die ${FADE_ROUNDS} Runden lang liegen bleiben, verwehen.</li>
     <li><b>Teams:</b> Im Team-Modus wechseln sich die Gruppen ab, die Punkte aller Mitglieder zählen zusammen, und aus den Leisten deiner Teammitglieder darfst du jeden Stein nehmen.</li>
@@ -2318,6 +2344,63 @@ async function checkVersion(){
     if(S.screen!=='game'&&!done){try{sessionStorage.setItem('ponens-reloaded','1');}catch(e){}location.reload();}
     else toast('Es gibt eine neue Version. Lade die Seite bitte neu.','Update','',9000);
   }catch(e){}
+}
+
+/* ================= „Nichts passt“ =================
+   Das Spiel prüft selbst nach, ob es stimmt: Gibt es irgendeinen Stein, den die Person nehmen darf (eigene Steine und
+   orange Steine der anderen), und irgendein Feld, auf das er regelgerecht passt und mit dem der Schluss noch gelingen kann?
+   Nur wenn es keinen solchen Zug gibt, wird der Zug beendet. Sonst zeigt das Spiel einen möglichen Zug. */
+function takeableTiles(){
+  const out=[];
+  S.players.forEach((P_,p)=>P_.rack.forEach((t,slot)=>{if(t&&(p===S.cur||t.orange||sameTeam(p,S.cur)))out.push({p,slot,tile:t});}));
+  return out;
+}
+function findValidMove(){
+  const bySym=new Map();
+  takeableTiles().forEach(src=>{const old=bySym.get(src.tile.s);if(!old||(src.p===S.cur&&old.p!==S.cur))bySym.set(src.tile.s,src);});
+  for(const tf of S.tafeln){
+    if(tf.solved)continue;
+    const rows=[...tf.rows,tf.concl];
+    for(let ri=0;ri<rows.length;ri++){
+      const row=rows[ri],r=ri===tf.rows.length?'c':ri;
+      if(row.locked)continue;
+      for(let k=0;k<row.slots.length;k++){
+        if(row.slots[k])continue;
+        for(const [sym,src] of bySym){
+          if(insertError(tf,r,k,sym,'new'))continue;            // Feldart und Nachbarn müssen stimmen
+          row.slots[k]={tile:{s:sym},by:S.cur,tent:true};
+          const st=tafelStatus(tf);                              // der Schluss muss noch gelingen können
+          row.slots[k]=null;
+          if(st.state==='open'||st.state==='solved')return{tf,r,k,sym,src};
+        }
+      }
+    }
+  }
+  return null;
+}
+function noFitSwap(){
+  if(S.exchanged||S.bag.length<1)return 0;
+  const rack=curP().rack,idx=shuffle(rack.map((t,i)=>t?i:-1).filter(i=>i>=0)).slice(0,Math.min(3,S.bag.length));
+  const out=idx.map(i=>rack[i]);
+  idx.forEach(i=>{rack[i]=S.bag.pop();S.fresh.add(rack[i].id);});
+  S.bag.push(...out);shuffle(S.bag);S.exchanged=true;
+  return idx.length;
+}
+async function actNoFit(){
+  if(hasNew()||S.moves){toast('Du hast schon Steine gelegt. Beende den Zug oder nimm sie zurück.');return;}
+  const mv=findValidMove();
+  if(mv){
+    // Stimmt nicht: Es geht noch etwas. Das Spiel zeigt, was.
+    S.hl=`.tslot[data-tid="${mv.tf.id}"][data-r="${mv.r}"][data-k="${mv.k}"],.tile[data-p="${mv.src.p}"][data-slot="${mv.src.slot}"]`;
+    render();setTimeout(()=>{S.hl=null;if(S.screen==='game')render();},3500);
+    const nm=EMO[mv.sym]?EMO[mv.sym].name:mv.sym;
+    toast(`Doch, da geht noch etwas: ${EMO[mv.sym]?mv.sym+' ':''}passt auf die leuchtende Tafel.`,'Es passt noch','',4500);
+    return;
+  }
+  const n=noFitSwap();
+  toast(n?`Stimmt, nichts passt. Du bekommst ${n} neue Steine.`:'Stimmt, nichts passt.','','turn',2600);
+  takeSnap();                    // getauschte Steine sollen den Zug überdauern
+  await passTurn('nofit');
 }
 /* ================= Online sync ================= */
 let writeQ=Promise.resolve(),draftQ=Promise.resolve(),draftSent='',draftTimer=null;
@@ -3201,6 +3284,7 @@ const ACT={
   cancel(){if(userOK()){cancelMode();render();}},
   createEvent(){if(P.online)createEvent();},
   nameOk(){nameOk();},
+  nofit(){if(userOK())actNoFit();},
   qrFixed(){showQrFixed();},
   copyFixed(){copyFixed();},
   nameCancel(){closeModal();S.pick=null;L.eventInvite=null;L.joinCurrent=false;if(S.screen==='event'&&!E.ev)ACT.home();},
