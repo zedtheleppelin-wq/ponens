@@ -794,7 +794,7 @@ body{background:
 </div>
 
 <script>
-const BUILD='20261016-0718';
+const BUILD='20261016-0804';
 'use strict';
 /* ================= Helpers ================= */
 const $=(s,e=document)=>e.querySelector(s), $$=(s,e=document)=>[...e.querySelectorAll(s)];
@@ -2405,11 +2405,23 @@ function sendDraft(){
 }
 function unsub(list){list.forEach(u=>{try{u();}catch(e){}});list.length=0;}
 const snapErr=e=>{if(e&&e.code!=='unavailable')console.warn('db',e);};
+// Alle Spielstände laufen nacheinander durch dieselbe Schlange (Echtzeit-Updates und Nachfragen)
+let snapQ=Promise.resolve();
+const feedSnap=s=>{snapQ=snapQ.then(()=>onGameSnap(s)).catch(e=>console.error(e));return snapQ;};
+// Sicherheitsnetz: Manche Handys verpassen Echtzeit-Meldungen (Standby, wackeliges WLAN). Deshalb fragen wir regelmäßig nach
+// und starten außerdem eine offene Blitzrunde, falls sie noch nicht läuft.
+setInterval(async()=>{
+  if(!P.online||!S.online||S.screen!=='game'||S.tutorial||!S.code||S.ended)return;
+  try{
+    const sn=await P.db.doc('games/'+S.code).get();
+    if(sn.exists&&(sn.data().rev||0)>(S.rev||0))feedSnap(sn);
+  }catch(e){}
+  if(S.status==='blitz'&&!S.bz&&!S.busy)startBz();
+},3000);
 function subscribeGame(code){
   unsub(gameSubs);
   S.code=code;S.draft=null;
-  let q=Promise.resolve();
-  gameSubs.push(P.db.doc('games/'+code).onSnapshot(s=>{q=q.then(()=>onGameSnap(s)).catch(e=>console.error(e));},snapErr));
+  gameSubs.push(P.db.doc('games/'+code).onSnapshot(s=>feedSnap(s),snapErr));
   gameSubs.push(P.db.collection(`games/${code}/live`).onSnapshot(s=>{
     const docs=s.docs.map(d=>Object.assign(clone(d.data()),{_id:d.id}));
     L.liveAll=docs;
