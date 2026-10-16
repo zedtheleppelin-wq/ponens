@@ -352,7 +352,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--font);overflow:hidd
 #coach.dim{opacity:.25;pointer-events:none}
 .story{font-size:14px;color:var(--muted);margin:10px 0 0;line-height:1.45}
 .toast.story{font-size:15px;font-style:italic}
-/* ---------- v5: Vorgaben, Level, Blitz, Teams ---------- */
+/* ---------- v5: Vorgaben, Level, Teams ---------- */
 .tslot.ok::before{content:"";width:22%;height:22%;border-radius:50%;background:var(--accent);opacity:.45}
 .tile.fixedtile{background:linear-gradient(155deg,#eceef2,#d5d9e0);color:#3d4350;cursor:default;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 calc(var(--s)*.05) 0 #aeb4bf,0 calc(var(--s)*.08) calc(var(--s)*.12) rgba(0,0,0,.15)}
@@ -783,7 +783,7 @@ body{background:
 </div>
 
 <script>
-const BUILD='20261005-0730';
+const BUILD='20261015-1930';
 'use strict';
 /* ================= Helpers ================= */
 const $=(s,e=document)=>e.querySelector(s), $$=(s,e=document)=>[...e.querySelectorAll(s)];
@@ -812,15 +812,14 @@ const TEAMS=[{name:'Füchse',icon:'🦊'},{name:'Bären',icon:'🐻'},{name:'Eul
 const MAX_PLAYERS=6;
 const MAX_NEW=4,DEFAULT_TURN_TIME=60,MAX_GROUP=4;
 const GLITTER_BONUS=10,CHAIN_BONUS=5,TEAM_BONUS=15,MOVES_PER_TURN=2,FADE_ROUNDS=3;
-const BLITZ_TILE_PTS=4;      // jeder Stein, den man in der Blitzrunde anlegt, bringt 4 Punkte
 // Tafeln mit Vorgaben. 'E' = Feld für ein Emoji, 'n' = kleines Feld für ein optionales ¬,
 // alles andere ist fest vorgegeben (auch Emojis als Orientierung).
 const KINDS={
   mini:{name:'Mini',bonus:3,gen:(A,B)=>({rows:[[A,'→','E'],['E']],concl:['E'],sol:[B,A,B]})},
   mp:{name:'Ponens',bonus:5,gen:(A,B,C,D,v)=>v?{rows:[['n',A,'→','n','E'],['n','E']],concl:['n','E'],sol:[B,A,B]}
                                               :{rows:[['n','E','→','n',B],['n','E']],concl:['n','E'],sol:[A,A,B]}},
-  mt:{name:'Tollens',bonus:6,gen:(A,B,C,D,v)=>v?{rows:[[A,'→','E'],['¬','E']],concl:['¬','E'],sol:[B,B,A]}
-                                              :{rows:[['E','→',B],['¬','E']],concl:['¬','E'],sol:[A,B,A]}},
+  mt:{name:'Tollens',bonus:6,gen:(A,B,C,D,v)=>v?{rows:[[A,'→','n','E'],['n','E']],concl:['n','E'],sol:[B,B,A]}
+                                              :{rows:[['E','→','n',B],['n','E']],concl:['n','E'],sol:[A,B,A]}},
   chain:{name:'Kette',bonus:10,minDepth:2,gen:(A,B,C)=>({rows:[['n',A,'→','n','E'],['n','E','→','n',C],['n','E']],concl:['n','E'],sol:[B,B,A,C]})},
   oder:{name:'Oder',bonus:10,gen:(A,B,C)=>({rows:[['(',A,'∨','E',')','→','E'],['E','∨','E']],concl:['E'],sol:[B,C,A,B,C]})},
   boss:{name:'Endgegner',bonus:25,minDepth:2,boss:true,gen:(A,B,C)=>({rows:[['n','E','→','n','E'],['n','E','→','n','E'],['n','E']],concl:[C],sol:[A,B,B,C,A]})},
@@ -841,7 +840,6 @@ const LEVELS=[
   {name:'Fast geschafft',bag:60,open:.35,bands:[['mp','mt'],['chain','mp']],extra:['mp','mt','chain']},
   {name:'Finale',bag:65,open:.4,bands:[['mp','mt'],['chain','chain']],extra:['mp','mt','chain']}
 ];
-const BLITZ=[{kind:'mp',sec:30},{kind:'mt',sec:35},{kind:'mp',sec:30},{kind:'mt',sec:35},{kind:'chain',sec:50},{kind:'mp',sec:30},{kind:'mt',sec:35},{kind:'chain',sec:50},{kind:'chain',sec:50}];
 const NEXT={L:'BC',N:'LO',B:'LNO',O:'LNO',C:'BC'};
 const RULES={
   1:'Zwischen zwei Aussagen gehört ein →.',
@@ -894,11 +892,11 @@ function makeBagFor(tafeln,lvl){
 }
 function localDefaults(){
   return{sel:null,mode:'place',exSel:[],drag:null,over:null,busy:false,fresh:new Set(),hl:null,suppressClick:false,
-    scoreHold:{},draft:null,moves:0,popIds:new Set(),snap:null,blitz:S.blitz||null,liveDocs:S.liveDocs||[]};
+    scoreHold:{},draft:null,moves:0,popIds:new Set(),snap:null,liveDocs:S.liveDocs||[]};
 }
 function initState(names,ids=[],online=false,teams=[],turnTime=DEFAULT_TURN_TIME){
   const lvl=1,tafeln=buildLevel(1,names.length),bag=makeBagFor(tafeln,1);
-  Object.assign(S,localDefaults(),{online,tutorial:false,ended:false,status:'playing',code:S.code||null,blitz:null,blitzSpec:null,
+  Object.assign(S,localDefaults(),{online,tutorial:false,ended:false,status:'playing',code:S.code||null,
     n:names.length,turnTime,cur:0,turn:1,rev:1,passes:0,exchanged:false,lastMove:null,animTurn:0,level:lvl,lastCall:null,
     players:names.map((nm,i)=>({id:ids[i]||null,name:nm,score:0,rack:Array(8).fill(null),color:COLORS[i%COLORS.length],team:teams[i]??null})),
     tafeln,bag});
@@ -906,13 +904,13 @@ function initState(names,ids=[],online=false,teams=[],turnTime=DEFAULT_TURN_TIME
 function serialize(){
   return clone({code:S.code,status:S.status,hostId:S.hostId||null,hostName:S.hostName||'',createdAt:S.createdAt||Date.now(),updatedAt:Date.now(),
     players:S.players,playerIds:S.players.map(p=>p.id).filter(Boolean),cur:S.cur,tafeln:S.tafeln,bag:S.bag,level:S.level,lastCall:S.lastCall,
-    blitzSpec:S.blitzSpec||null,turn:S.turn,rev:S.rev,passes:S.passes,exchanged:S.exchanged,lastMove:S.lastMove,v:5,turnTime:S.turnTime??DEFAULT_TURN_TIME,eventCode:S.eventCode||null,groupName:S.groupName||null});
+    turn:S.turn,rev:S.rev,passes:S.passes,exchanged:S.exchanged,lastMove:S.lastMove,v:5,turnTime:S.turnTime??DEFAULT_TURN_TIME,eventCode:S.eventCode||null,groupName:S.groupName||null});
 }
 function deserialize(d0){
   const d=clone(d0);
   Object.assign(S,localDefaults(),{draft:S.draft,code:d.code,status:d.status,hostId:d.hostId,hostName:d.hostName,createdAt:d.createdAt,
     players:d.players,n:d.players.length,cur:d.cur,tafeln:d.tafeln,bag:d.bag||[],turn:d.turn,rev:d.rev,level:d.level||1,lastCall:d.lastCall??null,
-    blitzSpec:d.blitzSpec||null,eventCode:d.eventCode||null,groupName:d.groupName||null,turnTime:d.turnTime??DEFAULT_TURN_TIME,passes:d.passes||0,exchanged:!!d.exchanged,lastMove:d.lastMove||null,ended:d.status==='ended'});
+    eventCode:d.eventCode||null,groupName:d.groupName||null,turnTime:d.turnTime??DEFAULT_TURN_TIME,passes:d.passes||0,exchanged:!!d.exchanged,lastMove:d.lastMove||null,ended:d.status==='ended'});
   takeSnap();
 }
 const curP=()=>S.players[S.cur];
@@ -923,16 +921,14 @@ function teamTotals(){
   return Object.entries(t).map(([k,v])=>({team:+k,score:v})).sort((a,b)=>b.score-a.score);
 }
 const meIdx=()=>S.online?S.players.findIndex(p=>p.id===P.uid):S.cur;
-const inBlitz=()=>S.status==='blitz'&&S.blitz;
-const blitzActive=()=>inBlitz()&&S.blitz.running&&!S.blitz.finished;
 const isMyTurn=()=>!S.ended&&S.status==='playing'&&(S.online?S.cur===meIdx():true);
 const dockIdx=()=>{const m=meIdx();return m>=0?m:S.cur;};
-const userOK=()=>S.screen==='game'&&!S.busy&&(!S.tutorial||S.tutLive)&&!S.ended&&(inBlitz()?blitzActive():isMyTurn());
-const boardTafeln=()=>inBlitz()?[S.blitz.tf]:S.tafeln;
+const userOK=()=>S.screen==='game'&&!S.busy&&(!S.tutorial||S.tutLive)&&!S.ended&&isMyTurn();
+const boardTafeln=()=>S.tafeln;
 const tafel=id=>boardTafeln().find(t=>t.id===id);
 const rowOf=(tf,r)=>r==='c'?tf.concl:tf.rows[r];
 const entries=row=>row.slots.filter(Boolean);
-const rackOf=p=>p==='b'?S.blitz.rack:S.players[p].rack;
+const rackOf=p=>S.players[p].rack;
 const rackTile=src=>rackOf(src.p)[src.slot];
 function takeSnap(){S.snap=clone({tafeln:S.tafeln,racks:S.players.map(p=>p.rack)});S.moves=0;}
 function allEntries(fn){S.tafeln.forEach(tf=>{[...tf.rows,tf.concl].forEach((row,ri)=>row.slots.forEach((e,k)=>{if(e)fn(e,tf,ri,k);}));});}
@@ -1069,11 +1065,17 @@ const touched=tf=>[...tf.rows,tf.concl].some(r=>entries(r).some(e=>e.tent||e.mov
    open:       noch Felder frei, aber der Schluss kann mit passenden Steinen noch gelingen (z. B. wenn die anderen weiterlegen)
    impossible: noch Felder frei, aber mit diesen Steinen kann der Schluss nie mehr klappen
    invalid:    alle Felder belegt, aber der Schluss stimmt nicht */
+function freeSlots(tf){
+  const out=[];
+  [...tf.rows,tf.concl].forEach((row,ri)=>row.types.forEach((ty,k)=>{
+    if((ty==='E'||ty==='J')&&!row.slots[k])out.push({r:ri===tf.rows.length?'c':ri,k,ty});}));
+  return out;
+}
 const COMPL=new Map();
 function tafelCompletable(tf){
   const sig=[...tf.rows,tf.concl].map(r=>r.slots.map(e=>e?e.tile.s:'_').join(',')).join('/')+'|'+tf.kind;
   if(COMPL.has(sig))return COMPL.get(sig);
-  const all=blitzFreeSlots(tf);
+  const all=freeSlots(tf);
   [...tf.rows,tf.concl].forEach((row,ri)=>row.types.forEach((ty,k)=>{if(ty==='n'&&!row.slots[k])all.push({r:ri===tf.rows.length?'c':ri,k,ty:'n'});}));
   const rec=i=>{
     if(i===all.length)return evalTafel(tf,S.cur).ok;
@@ -1091,7 +1093,7 @@ function tafelCompletable(tf){
   COMPL.set(sig,ok);return ok;
 }
 function tafelStatus(tf){
-  if(!blitzFreeSlots(tf).length){const ev=evalTafel(tf,S.cur);return ev.ok?{state:'solved',ev,tf}:{state:'invalid',ev,tf};}
+  if(!freeSlots(tf).length){const ev=evalTafel(tf,S.cur);return ev.ok?{state:'solved',ev,tf}:{state:'invalid',ev,tf};}
   return{state:tafelCompletable(tf)?'open':'impossible',tf};
 }
 const pendingStates=()=>S.tafeln.filter(tf=>!tf.solved&&touched(tf)).map(tafelStatus);
@@ -1115,12 +1117,6 @@ function statusHTML(){
   return`<span class="status open">Passt bisher, noch offen</span>`;
 }
 function controlsHTML(){
-  if(inBlitz()){
-    const b=S.blitz;
-    if(b.finished)return`<div class="controls"><span class="waiting">${b.tf.solved?'Brett voll!':'Die Zeit ist um.'} Gleich geht es weiter<span class="dots"><i>.</i><i>.</i><i>.</i></span></span></div>`;
-    if(!b.running)return`<div class="controls"><span class="waiting">Gleich geht's los<span class="dots"><i>.</i><i>.</i><i>.</i></span></span></div>`;
-    return`<div class="controls"><div class="timer"><div class="bar" id="blitzBar"></div><span id="blitzTime"></span></div></div>`;
-  }
   if(!isMyTurn())return`<div class="controls"><span class="waiting">${esc(curP().name)} ist dran<span class="dots"><i>.</i><i>.</i><i>.</i></span></span></div>`;
   if(S.mode==='exchange'){
     const k=S.exSel.length,ok=k===S.exN&&S.bag.length>=k;
@@ -1152,23 +1148,14 @@ function tilesHTML(rack,p,active){
     return tileHTML(t,cls,`data-p="${p}" data-slot="${k}" role="button" tabindex="0"`);
   }).join('');
 }
-function blitzBadge(i){
-  if(!inBlitz())return'';
-  const b=S.blitz;
-  let n=Object.values(b.placed||{}).filter(v=>v.by===i).length;
-  if(!S.online){const r=(b.results||[]).find(x=>x.i===i);n=r?r.n:(i===b.player?b.mine:0);}
-  return`<span class="moves${n?' ok':''}">${n} Stein${n===1?'':'e'}</span>`;
-}
 function rackwrapHTML(i,inDock){
-  const Pl=S.players[i],active=!inBlitz()&&i===S.cur&&!S.ended;
+  const Pl=S.players[i],active=i===S.cur&&!S.ended;
   const you=S.online&&Pl.id===P.uid?' <span class="you">(du)</span>':'';
-  const blitzDock=inDock&&inBlitz();
   const moves=inDock&&isMyTurn()?`<span class="moves${newCount()>=MAX_NEW?' full':''}" title="Neue Steine in diesem Zug">Neu ${newCount()}/${MAX_NEW}</span>`:'';
   const tmr='';
-  if(inBlitz()&&!inDock)return`<div class="rackwrap" data-player="${i}"><div class="head">${Pl.team!=null?`<span class="ticon">${TEAMS[Pl.team].icon}</span>`:`<span class="dot" style="background:${Pl.color}"></span>`}<span class="nm">${esc(Pl.name)}${you}</span><span class="sc" id="score-${i}">${displayScore(i)}</span>${blitzBadge(i)}</div></div>`;
-  const rack=blitzDock?(S.blitz.running||S.blitz.finished?tilesHTML(S.blitz.rack,'b',true):S.blitz.rack.map(()=>'<div class="slot"></div>').join('')):tilesHTML(Pl.rack,i,active);
-  return`<div class="rackwrap${active||blitzDock?' active':''}" data-player="${i}">
-    <div class="head">${Pl.team!=null?`<span class="ticon" title="${TEAMS[Pl.team].name}">${TEAMS[Pl.team].icon}</span>`:`<span class="dot" style="background:${Pl.color}"></span>`}<span class="nm">${esc(Pl.name)}${you}</span><span class="sc" id="score-${i}">${displayScore(i)}</span>${moves}${tmr}${blitzBadge(i)}</div>
+  const rack=tilesHTML(Pl.rack,i,active);
+  return`<div class="rackwrap${active?' active':''}" data-player="${i}">
+    <div class="head">${Pl.team!=null?`<span class="ticon" title="${TEAMS[Pl.team].name}">${TEAMS[Pl.team].icon}</span>`:`<span class="dot" style="background:${Pl.color}"></span>`}<span class="nm">${esc(Pl.name)}${you}</span><span class="sc" id="score-${i}">${displayScore(i)}</span>${moves}${tmr}</div>
     <div class="row"><div class="rack">${rack}</div></div>
     ${inDock&&!S.ended?controlsHTML():''}
   </div>`;
@@ -1218,7 +1205,7 @@ function rowHTML(tf,r,draftMode){
   let cls='trow '+(r==='c'?'concl':'prem');
   if(row.locked)cls+=' locked';
   const loose=entries(row).filter(e=>!e.fixed);
-  if(!tf.solved&&r!=='c'&&loose.length&&!loose.some(e=>e.tent)&&!inBlitz()&&S.turn-row.t>=(FADE_ROUNDS-1)*S.n)cls+=' aging';
+  if(!tf.solved&&r!=='c'&&loose.length&&!loose.some(e=>e.tent)&&S.turn-row.t>=(FADE_ROUNDS-1)*S.n)cls+=' aging';
   const canPlace=held&&!draftMode&&userOK();
   if(canPlace&&!tf.solved)cls+=canInsertSomewhere(tf,r,held.s,kind)?' can':' cant';
   let slots='';
@@ -1227,7 +1214,7 @@ function rowHTML(tf,r,draftMode){
     if(ty==='n')sc+=' nar';else if(ty==='J')sc+=' jun';else if(ty==='F'&&e&&!EMO[e.tile.s])sc+=' op';else if(ty==='E')sc+=' emo-slot';
     const o=S.over;
     if(e){const c=(e.tent?'tent':'')+(draftMode&&e.tent?' draft':'')+(S.popIds.has(e.tile.id)?' pop':'')+(e.fixed?' fixedtile':'')+(row.locked?' goldtile':'');
-      const bc=inBlitz()&&e.by!=null&&e.by>=0&&S.players[e.by]?S.players[e.by].color:null;
+      const bc=null;
       inner=tileHTML(e.tile,c+(bc?' bymark':''),(draftMode||e.fixed||tf.solved?'':`data-tid="${tf.id}" data-r="${r}" data-k="${i}"`)+(bc?` style="--by:${bc}"`:''));sc+=' full';}
     else if(o&&o.tid===tf.id&&o.r===r&&o.k===i&&held&&!draftMode){inner=tileHTML(held,'ghost'+(o.err?' bad':''));}
     else if(canPlace&&!tf.solved&&!insertError(tf,r,i,held.s,kind))sc+=' ok';
@@ -1239,7 +1226,6 @@ function badgeHTML(tf){return'';}
 function badgeHTMLold(tf){
   const K=KINDS[tf.kind];
   if(tf.solved)return`<div class="tbadge"><b>✓ ${esc(tf.solved.label)}</b><span class="lvl">${esc(S.players[tf.solved.by]?.name||'')}</span></div>`;
-  if(tf.id==='blitz')return`<div class="tbadge"><b>Blitzrunde</b> ${K.name}${K.minDepth?`, mind. ${K.minDepth} Schritte`:''}</div>`;
   let t=`<b>${K.name}</b> +${K.bonus}`;
   if(K.minDepth)t+=`, mind. ${K.minDepth} Schritte`;
   return`<div class="tbadge">${t}</div>`;
@@ -1268,7 +1254,6 @@ function renderTop(){
     else el.innerHTML='<button class="votepill" data-act="tutSkip">Überspringen ⏭</button>';
     $('#bagInfo').textContent='';return;
   }
-  if(inBlitz()){el.innerHTML='<b>Blitzrunde</b>';$('#bagInfo').textContent='';return;}
   const lv=LEVELS[S.level-1];
   el.innerHTML=`${S.groupName?`<span class="nm">${esc(S.groupName)}</span>`:''}<b>Level ${S.level}</b><span class="nm">${esc(lv.name)}</span><span class="prog">${solvedCount()}/${S.tafeln.length}</span>`;
   $('#bagInfo').textContent=S.lastCall!=null?`Letzte Züge: ${S.lastCall}`:`Beutel: ${S.bag.length}`;
@@ -1287,7 +1272,6 @@ function render(){
   $$('.coach-hl').forEach(e=>e.classList.remove('coach-hl'));
   if(S.hl)$$(S.hl).forEach(e=>e.classList.add('coach-hl'));
   if(S.fresh.size){const ids=[...S.fresh];setTimeout(()=>ids.forEach(id=>S.fresh.delete(id)),700);}
-  if(inBlitz())tickBlitz();
 }
 
 /* ================= Layout ================= */
@@ -1300,7 +1284,7 @@ function layout(){
   const dockH=tA+26+46+34;
   const avW=W-12,avH=H-topH-stripH-dockH-12;
   const list=boardTafeln();
-  const cMax=S.tutorial?84:inBlitz()?66:58,cMin=Math.min(30,Math.floor(avW/9.5));
+  const cMax=S.tutorial?84:58,cMin=Math.min(30,Math.floor(avW/9.5));
   let c=cMax;
   for(;c>cMin;c--){computeGeometry(c,list,avW);if(G.H<=avH&&G.W<=avW)break;}
   computeGeometry(c,list,avW);
@@ -1421,13 +1405,12 @@ function canUse(p,slot){
 const newCount=()=>{let n=0;allEntries(e=>{if(e.tent)n++;});return n;};
 function insertEntry(info,tid,r,k,kind){
   const tf=tafel(tid),row=rowOf(tf,r);
-  if(kind==='new'&&!inBlitz()&&!S.tutorial&&newCount()>=MAX_NEW)return{msg:`Pro Zug darfst du höchstens ${MAX_NEW} neue Steine legen. Nimm einen zurück oder beende den Zug.`};
+  if(kind==='new'&&!S.tutorial&&newCount()>=MAX_NEW)return{msg:`Pro Zug darfst du höchstens ${MAX_NEW} neue Steine legen. Nimm einen zurück oder beende den Zug.`};
   const err=insertError(tf,r,k,info.tile.s,kind);if(err)return err;
-  if(inBlitz()&&kind==='new'&&!S.tutorial){const be=blitzValidate(tf,r,k,info.tile.s);if(be)return be;}
-  row.slots[k]=kind==='move'?{tile:info.tile,by:info.by,moved:true}:{tile:info.tile,by:inBlitz()?meIdx():S.cur,tent:true,from:info.from,slot:info.slot};
+  row.slots[k]=kind==='move'?{tile:info.tile,by:info.by,moved:true}:{tile:info.tile,by:S.cur,tent:true,from:info.from,slot:info.slot};
   return null;
 }
-function afterChange(){if(inBlitz())blitzCommit();}
+function afterChange(){}
 function actSelect(p,slot){
   const t=rackOf(p)[slot];if(!t)return;
   if(S.mode==='exchange'){
@@ -1457,7 +1440,6 @@ function actSlotTap(tid,r,k){
   rackOf(src.p)[src.slot]=null;S.popIds.add(t.id);S.sel=null;render();afterChange();
 }
 function actUndo(){
-  if(inBlitz()){const b=S.blitz;b.tf=clone(b.tfStart);b.rack=clone(b.rackStart);S.sel=null;render();return;}
   if(!S.snap)return;
   S.tafeln=clone(S.snap.tafeln);S.players.forEach((p,i)=>p.rack=clone(S.snap.racks[i]));
   S.moves=0;S.sel=null;cancelMode();render();
@@ -1474,7 +1456,7 @@ function actExGo(){
   S.exchanged=true;cancelMode();S.rev++;takeSnap();render();writeGame();
   toast('Getauscht. Jetzt noch mindestens einen Stein legen.');
 }
-// Level vorbei? Dann Teamwork-Bonus und Blitzrunde vorbereiten
+// Level vorbei? Dann Teamwork-Bonus und weiter zum nächsten Level
 function finishLevelIfDue(lm){
   if(S.tutorial)return false;
   const full=S.tafeln.every(t=>t.solved);
@@ -1483,7 +1465,7 @@ function finishLevelIfDue(lm){
   lm.levelDone=true;lm.team=full?TEAM_BONUS:0;
   if(full)S.players.forEach(p=>p.score+=TEAM_BONUS);
   if(S.level>=LEVELS.length){S.status='ended';return true;}
-  S.status='blitz';S.blitzSpec=makeBlitzSpec(S.level);
+  S.status='nextlevel';
   return true;
 }
 function tickLastCall(){
@@ -1552,232 +1534,13 @@ async function passTurn(reason){
 }
 function afterMove(lm){
   if(S.status==='ended'){S.ended=true;return endGame();}
-  if(S.status==='blitz'){enterBlitz();return;}
+  if(S.status==='nextlevel'){advanceLevel(0);return;}
   render();turnNotice(lm);
 }
 function finishGame(){closeModal();S.status='ended';S.ended=true;S.rev++;writeGame();endGame();}
 
-/* ================= Blitzrunde ================= */
-/* ---- Blitzrunde: alle legen gleichzeitig an dieselbe Tafel, jeder angelegte Stein zählt ---- */
-const bkey=(r,k)=>r+':'+k;
-function blitzFreeSlots(tf){
-  const out=[];
-  [...tf.rows,tf.concl].forEach((row,ri)=>row.types.forEach((ty,k)=>{
-    if((ty==='E'||ty==='J')&&!row.slots[k])out.push({r:ri===tf.rows.length?'c':ri,k,ty});}));
-  return out;
-}
-// Findet eine vollständige Belegung der freien Pflichtfelder, mit der der Schluss stimmt, und zwar nur mit den Steinen,
-// die in der Leiste wirklich bereitliegen (mengengenau, abzüglich dessen, was schon auf der Tafel liegt).
-function blitzSolve(tf,spec){
-  const have={};spec.rack.forEach(t=>have[t.s]=(have[t.s]||0)+1);
-  [...tf.rows,tf.concl].forEach(row=>row.slots.forEach(e=>{if(e&&!e.fixed)have[e.tile.s]=(have[e.tile.s]||0)-1;}));
-  if(Object.values(have).some(v=>v<0))return null;
-  const types=Object.keys(have).filter(s=>EMO[s]);
-  const free=blitzFreeSlots(tf);let sol=null;
-  const rec=i=>{
-    if(i===free.length)return evalTafel(tf,0).ok;
-    const f=free[i];
-    for(const s of (f.ty==='E'?types:['→'])){
-      if((have[s]||0)<=0)continue;
-      have[s]--;rowOf(tf,f.r).slots[f.k]={tile:{s},by:0};
-      if(rec(i+1)){if(!sol)sol=free.map(q=>({r:q.r,k:q.k,sym:rowOf(tf,q.r).slots[q.k].tile.s}));return true;}
-      rowOf(tf,f.r).slots[f.k]=null;have[s]++;
-    }
-    return false;
-  };
-  const ok=rec(0);
-  free.forEach(f=>{rowOf(tf,f.r).slots[f.k]=null;});
-  return ok?(sol||[]):null;     // volle Tafel: Die Lösung ist die leere Liste (nichts mehr zu legen)
-}
-function makeBlitzSpec(level){
-  const B=BLITZ[(level-1)%BLITZ.length],pick=()=>EMOJIS[Math.random()*EMOJIS.length|0];
-  for(let tries=0;tries<12;tries++){
-    const tpl=genTpl(B.kind),extra=[pick(),['¬',pick()][Math.random()*2|0]];
-    const rack=shuffle([...tpl.sol,...extra]).map(s=>({id:uidT(),s,orange:false,glitter:false,cashed:true}));
-    const spec={level,kind:B.kind,sec:B.sec,rack,tpl:{rows:tpl.rows,concl:tpl.concl},id:uidT()};
-    // Sicherheitsnetz: Mit den gegebenen Steinen muss sich die Tafel wirklich vervollständigen lassen
-    if(blitzSolve(makeTafel(spec.kind,0,0,'chk',spec.tpl),spec))return spec;
-  }
-  const tpl=genTpl(B.kind);
-  return{level,kind:B.kind,sec:B.sec,rack:tpl.sol.map(s=>({id:uidT(),s,orange:false,glitter:false,cashed:true})),tpl:{rows:tpl.rows,concl:tpl.concl},id:uidT()};
-}
-// Darf dieser Stein dorthin? Nur, wenn die Tafel danach noch vollständig werden kann.
-function blitzValidate(tf,r,k,sym){
-  const row=rowOf(tf,r);row.slots[k]={tile:{s:sym},by:0};
-  const ok=!!blitzSolve(tf,S.blitz.spec);
-  row.slots[k]=null;
-  return ok?null:{msg:'Der passt hier nicht zum Schluss. Probier einen anderen Stein.'};
-}
-function enterBlitz(){
-  clearStory();
-  const sp=S.blitzSpec;if(!sp)return;
-  if(S.blitz&&S.blitz.id===sp.id)return;
-  const tf=makeTafel(sp.kind,0,0,'blitz',sp.tpl);
-  const order=S.online?[meIdx()].filter(i=>i>=0):S.players.map((_,i)=>i);
-  S.blitz={id:sp.id,spec:sp,tf,tfStart:clone(tf),rack:clone(sp.rack),rackStart:clone(sp.rack),results:[],running:false,finished:order.length===0,done:false,
-    placed:{},mine:0,order,idx:0,player:order[0],label:''};
-  S.sel=null;cancelMode();
-  if(!S.online)S.cur=order[0];
-  layout();
-  S.blitz.label=S.online?'Los!':`${S.players[order[0]].name}: Los!`;
-  render();
-  if(S.online){
-    onBlitzBoard((L.liveAll||[]).find(x=>x._id==='blitzboard'));
-    if(S.blitz.finished)toast('Du schaust bei dieser Blitzrunde zu.');
-    else{blitzCountdown();botBlitz();}      // auf mehreren Geräten: alle starten automatisch gleichzeitig
-  }else if(!S.tutorial){
-    // An einem Gerät: erst Blitzrunde, dann wer anfängt, dann 3, 2, 1 – ohne Knopf und ohne Erklärung
-    blitzCountdown(['Blitzrunde!',S.players[order[0]].name,'3','2','1']);
-  }
-}
-// Der Bot legt mit: in unregelmäßigem Takt ein passender Stein auf ein freies Feld
-async function botBlitz(){
-  const bi=S.players.findIndex(p=>p.bot);if(bi<0||meIdx()<0)return;
-  const b=S.blitz,id=b.id;
-  await sleep(4300+Math.random()*1500);
-  while(S.blitz&&S.blitz.id===id&&S.status==='blitz'&&S.blitz.running&&!S.blitz.done){
-    await sleep(2200+Math.random()*3300);
-    const bb=S.blitz;if(!bb||bb.id!==id||!bb.running||bb.done)break;
-    if(Math.random()<.2)continue;                                   // manchmal zögert er
-    const plan=blitzSolve(clone(bb.tf),bb.spec);
-    if(!plan||!plan.length)break;
-    const p=plan[Math.random()*plan.length|0];
-    await blitzShared(p.r,p.k,p.sym,bi);
-  }
-}
-async function blitzCountdown(words){
-  const b=S.blitz;closeModal();
-  words=words||['Blitzrunde!','3','2','1'];
-  const el=document.createElement('div');el.className='countdown';$('#fx').appendChild(el);
-  for(const t of words){
-    if(S.blitz!==b)break;
-    el.textContent=t;el.classList.toggle('word',t.length>1);
-    el.animate([{transform:'translate(-50%,-50%) scale(.4)',opacity:0},{transform:'translate(-50%,-50%) scale(1.1)',opacity:1,offset:.35},{transform:'translate(-50%,-50%) scale(1)',opacity:1,offset:.75},{transform:'translate(-50%,-50%) scale(.9)',opacity:0}],{duration:900,easing:'ease-out',fill:'forwards'});
-    await sleep(t.length>1?1300:900);
-  }
-  el.remove();
-  if(S.blitz===b&&!b.running&&!b.finished)blitzGo();
-}
-function blitzGo(){
-  const b=S.blitz;if(!b||b.running||b.finished)return;
-  closeModal();
-  b.tf=clone(b.tfStart);b.rack=clone(b.rackStart);
-  if(S.online)blitzSync(b.placed||{});else{b.placed={};b.mine=0;}
-  b.running=true;b.start=performance.now();b.endAt=b.start+b.spec.sec*1000;
-  render();
-  clearInterval(b.timer);b.timer=setInterval(tickBlitz,200);
-}
-function tickBlitz(){
-  const b=S.blitz;if(!b||!b.running)return;
-  const left=Math.max(0,b.endAt-performance.now());
-  const t=$('#blitzTime'),bar=$('#blitzBar');
-  if(t)t.textContent=Math.ceil(left/1000)+' s';
-  if(bar)bar.style.width=(left/(b.spec.sec*1000)*100)+'%';
-  if(left<=0)blitzEnd(false);
-}
-/* gemeinsamer Stand der Tafel: Wer zuerst auf ein Feld legt, hat es */
-async function blitzShared(r,k,sym,by){
-  const b=S.blitz;if(!b)return false;
-  const ref=P.db.doc(`games/${S.code}/live/blitzboard`),key=bkey(r,k);
-  try{
-    await P.db.runTransaction(async tx=>{
-      const s=await tx.get(ref);let d=s.exists?s.data():null;
-      if(!d||d.id!==b.id)d={id:b.id,placed:{}};
-      if(d.placed[key])throw new Error('taken');
-      // im Zweifel entscheidet der gemeinsame Stand: Passt der Stein dazu noch?
-      const tmp=clone(b.tfStart);
-      Object.entries(d.placed).forEach(([kk,v])=>{const[rr,k2]=kk.split(':');rowOf(tmp,rr==='c'?'c':+rr).slots[+k2]={tile:{s:v.s},by:v.by};});
-      rowOf(tmp,r).slots[k]={tile:{s:sym},by:by};
-      if(!blitzSolve(tmp,b.spec))throw new Error('wrong');
-      d.placed[key]={s:sym,by,t:Date.now()};
-      tx.set(ref,d);
-    });
-    return true;
-  }catch(e){if(e&&e.message!=='taken')console.warn('blitzShared:',e&&e.message);return false;}
-}
-function blitzSync(placed){
-  const b=S.blitz;if(!b)return;
-  b.placed=placed||{};
-  const me=meIdx();
-  for(const [key,v] of Object.entries(b.placed)){
-    const[r0,k0]=key.split(':'),r=r0==='c'?'c':+r0,k=+k0,row=rowOf(b.tf,r),cur=row.slots[k];
-    if(cur&&!cur.tent&&cur.tile.s===v.s&&cur.by===v.by)continue;
-    if(cur&&cur.tent){
-      if(v.by===me&&cur.tile.s===v.s){cur.tent=false;delete cur.from;delete cur.slot;continue;}
-      returnToRack('b',cur.slot,cur.tile);          // jemand war schneller: der Stein geht zurück in die Leiste
-    }
-    row.slots[k]={tile:{id:'b'+key,s:v.s,orange:false,glitter:false,cashed:true},by:v.by};
-  }
-  b.mine=Object.values(b.placed).filter(v=>v.by===me).length;
-}
-function onBlitzBoard(d){
-  const b=S.blitz;if(!b||!inBlitz())return;
-  blitzSync(d&&d.id===b.id?d.placed:{});
-  if(S.screen==='game'&&!S.busy){renderBoard();renderRacks();}
-  blitzCheckDone();
-}
-// Eigene, noch nicht bestätigte Steine anmelden (online per Transaktion, lokal sofort)
-async function blitzCommit(){
-  const b=S.blitz;if(!b||!b.running||b.committing)return;
-  b.committing=true;
-  try{
-    for(let guard=0;guard<6;guard++){
-      const pend=[];
-      [...b.tf.rows,b.tf.concl].forEach((row,ri)=>row.slots.forEach((e,k)=>{if(e&&e.tent)pend.push({r:ri===b.tf.rows.length?'c':ri,k,e});}));
-      if(!pend.length)break;
-      for(const p of pend){
-        const ok=S.online?await blitzShared(p.r,p.k,p.e.tile.s,meIdx()):true;
-        const row=rowOf(b.tf,p.r);
-        if(ok){
-          p.e.tent=false;delete p.e.from;delete p.e.slot;p.e.by=meIdx();
-          b.placed[bkey(p.r,p.k)]={s:p.e.tile.s,by:meIdx()};
-        }else{row.slots[p.k]=null;returnToRack('b',p.e.slot,p.e.tile);shakeRow('blitz',p.r);}
-      }
-    }
-  }finally{b.committing=false;}
-  b.mine=Object.values(b.placed).filter(v=>v.by===meIdx()).length;
-  render();blitzCheckDone();
-}
-function blitzCheckDone(){
-  const b=S.blitz;if(!b||b.done||!b.running&&!(S.online&&inBlitz()))return;
-  if(blitzFreeSlots(b.tf).length)return;
-  const ev=evalTafel(b.tf,0);
-  if(ev.ok)blitzComplete(ev);
-}
-async function blitzComplete(ev){
-  const b=S.blitz;if(!b||b.done)return;
-  b.done=true;b.running=false;clearInterval(b.timer);
-  b.tf.solved={by:-1,label:ev.label,story:ev.story};render();
-  await polishTafel({tid:'blitz',label:ev.label,story:ev.story,total:'Brett voll!'}).catch(()=>{});
-  blitzEnd(true);
-}
-// Ende der Runde bzw. des eigenen Versuchs
-function blitzEnd(complete){
-  const b=S.blitz;if(!b||b.ending)return;
-  if(S.online){
-    b.ending=true;b.running=false;b.done=true;b.finished=true;clearInterval(b.timer);render();
-    setTimeout(()=>finalizeBlitz(),complete?800:300);
-    return;
-  }
-  if(S.tutorial){b.running=false;b.done=true;b.finished=true;clearInterval(b.timer);b.results.push({i:b.player,n:b.mine});render();return;}
-  // lokal: nächster Versuch
-  b.running=false;clearInterval(b.timer);
-  b.results.push({i:b.player,n:b.mine});
-  b.idx++;
-  if(b.idx<b.order.length){
-    b.player=b.order[b.idx];S.cur=b.player;b.label=`${S.players[b.player].name}: Los!`;
-    b.tf=clone(b.tfStart);b.rack=clone(b.rackStart);b.placed={};b.mine=0;b.done=false;render();
-    const prev=b.results[b.results.length-1];
-    toast(`${prev.n} Stein${prev.n===1?'':'e'} angelegt.`,'','turn',2200);
-    setTimeout(()=>{if(S.blitz===b&&!b.running&&!b.finished)blitzCountdown([S.players[b.player].name,'3','2','1']);},1300);
-  }else{b.finished=true;b.ending=true;render();
-    const counts=S.players.map((_,i)=>(b.results.find(r=>r.i===i)||{n:0}).n);finalizeBlitz(counts);}
-}
-function nextLevelDoc(d,counts,joiners=[]){
+function nextLevelDoc(d,joiners=[]){
   const lvl=d.level+1;
-  // Punkte für die Blitzrunde: jeder angelegte Stein zählt
-  const blitz=counts.map((n,i)=>({i,n,pts:n*BLITZ_TILE_PTS})).filter(x=>x.n>0).sort((a,b)=>b.n-a.n);
-  blitz.forEach(x=>{if(d.players[x.i])d.players[x.i].score+=x.pts;});
   // Nachrücker aus Bot-Spielen kommen beim Levelwechsel dazu (höchstens MAX_GROUP Personen)
   joiners.forEach(j=>{
     if(d.players.length>=MAX_GROUP||d.players.some(p=>p.id===j.uid))return;
@@ -1786,39 +1549,39 @@ function nextLevelDoc(d,counts,joiners=[]){
   });
   d.tafeln=buildLevel(lvl,d.players.length);d.bag=makeBagFor(d.tafeln,lvl);
   d.players.forEach(p=>p.rack=Array(8).fill(null));fillRacksOf(d.players,d.bag);
-  Object.assign(d,{level:lvl,status:'playing',cur:(lvl-1)%d.players.length,turn:d.turn+1,rev:d.rev+1,passes:0,exchanged:false,lastCall:null,blitzSpec:null,
-    lastMove:{turn:d.turn+1,kind:'level',level:lvl,blitz,by:-1}});
+  Object.assign(d,{level:lvl,status:'playing',cur:(lvl-1)%d.players.length,turn:d.turn+1,rev:d.rev+1,passes:0,exchanged:false,lastCall:null,
+    lastMove:{turn:d.turn+1,kind:'level',level:lvl,by:-1}});
   return d;
 }
-let finalizeTimer=null;
-async function finalizeBlitz(localCounts){
-  const b=S.blitz;if(!b||b.finalizing)return;
-  b.finalizing=true;
-  if(!S.online){const d=nextLevelDoc(serialize(),localCounts,[]);deserialize(d);S.blitz=null;await levelIntro(d.lastMove,true);return;}
-  const joiners=(L.liveAll||[]).filter(x=>x._id.startsWith('join_')).map(x=>({uid:x.uid,name:x.name,score:x.score}));
-  const ref=P.db.doc('games/'+S.code),bref=P.db.doc(`games/${S.code}/live/blitzboard`);
+// Level geschafft: direkt ins nächste. Der, der den Zug gemacht hat, schaltet sofort weiter;
+// alle anderen warten kurz und springen ein, falls er weg ist (nur einer kommt durch).
+let advancing=false;
+async function advanceLevel(delay=0){
+  if(advancing)return;advancing=true;
   try{
+    if(delay)await sleep(delay);
+    if(!S.online){const d=nextLevelDoc(serialize(),[]);deserialize(d);S.animTurn=d.lastMove.turn;await levelIntro(d.lastMove,true);return;}
+    const joiners=(L.liveAll||[]).filter(x=>x._id.startsWith('join_')).map(x=>({uid:x.uid,name:x.name,score:x.score}));
+    const ref=P.db.doc('games/'+S.code);let nd=null;
     await P.db.runTransaction(async tx=>{
       const cur=(await tx.get(ref)).data();
-      if(!cur||cur.status!=='blitz'||!cur.blitzSpec||cur.blitzSpec.id!==b.id)return;
-      const bs=await tx.get(bref),bd=bs.exists?bs.data():null;
-      const counts=Array(cur.players.length).fill(0);
-      if(bd&&bd.id===b.id)Object.values(bd.placed||{}).forEach(v=>{if(counts[v.by]!=null)counts[v.by]++;});
-      tx.set(ref,nextLevelDoc(cur,counts,joiners));
+      if(!cur||cur.status!=='nextlevel'){nd=null;return;}
+      nd=nextLevelDoc(cur,joiners);tx.set(ref,nd);
     });
-  }catch(e){b.finalizing=false;console.warn(e);}
+    if(nd&&(nd.rev||0)>(S.rev||0)){deserialize(nd);S.online=true;S.animTurn=nd.lastMove.turn;await levelIntro(nd.lastMove,true);}
+  }catch(e){console.warn('advanceLevel',e);}
+  finally{advancing=false;}
 }
-// Kurze Ergebniskarte nach der Blitzrunde. Sie blendet sich selbst aus und blockiert nichts:
+// Kurze Karte beim Levelwechsel. Sie blendet sich selbst aus und blockiert nichts:
 // Austeilen, Bot und Zugzeit laufen sofort weiter. Ein Tipp schließt sie früher.
 function showLevelCard(lm){
   const lv=LEVELS[lm.level-1];
-  const rows=(lm.blitz||[]).map((x,k)=>`<div><span>${k+1}.</span><span>${esc(S.players[x.i]?S.players[x.i].name:'?')}</span><span class="p">${x.n} Stein${x.n===1?'':'e'}, +${x.pts}</span></div>`).join('');
-  const ms=rows?6500:3800;
+  const ms=3800;
   let el=$('#levelcard');if(!el){el=document.createElement('div');el.id='levelcard';document.body.appendChild(el);}
   clearTimeout(el._t);
   el.style.setProperty('--dur',ms+'ms');
   el.innerHTML=`<h3>Level ${lm.level}: ${esc(lv.name)}</h3>
-    ${rows?`<div class="lc-sub">Blitzrunde</div><div class="rank">${rows}</div>`:'<div class="lc-sub">In der Blitzrunde wurde diesmal kein Stein angelegt.</div>'}
+    <div class="lc-sub">Geschafft! Das nächste Brett wartet.</div>
     <div class="lc-sub">${esc(curP().name)} beginnt.</div><div class="lc-bar"><i></i></div>`;
   el.classList.remove('on');void el.offsetWidth;el.classList.add('on');
   const hide=()=>{el.classList.remove('on');};
@@ -1826,7 +1589,6 @@ function showLevelCard(lm){
 }
 async function levelIntro(lm,withDeal){
   clearStory();closeModal();
-  S.blitz=null;clearInterval(finalizeTimer);
   showLevelCard(lm);
   layout();
   if(withDeal)await deal();else render();
@@ -1934,9 +1696,9 @@ async function deal(){
 }
 async function startLocalGame(names,turnTime=DEFAULT_TURN_TIME){
   closeModal();unsub(gameSubs);
-  S.code=null;S.blitz=null;initState(names,[],false,[],turnTime);fillRacks();S.fresh.clear();takeSnap();
+  S.code=null;initState(names,[],false,[],turnTime);fillRacks();S.fresh.clear();takeSnap();
   showScreen('game');layout();
-  showModal(`<h3>Level 1: ${esc(LEVELS[0].name)}</h3><p>Füllt gemeinsam das ganze Brett mit gültigen Schlüssen. Ist es voll, bekommen alle ${TEAM_BONUS} Bonuspunkte, und nach einer Blitzrunde geht es ins nächste Level. Wer die meisten Punkte sammelt, gewinnt.</p><div class="stack"><button class="btn primary" data-act="closeModal">Los geht's</button></div>`);
+  showModal(`<h3>Level 1: ${esc(LEVELS[0].name)}</h3><p>Füllt gemeinsam das ganze Brett mit gültigen Schlüssen. Ist es voll, bekommen alle ${TEAM_BONUS} Bonuspunkte, und dann geht es ins nächste Level. Wer die meisten Punkte sammelt, gewinnt.</p><div class="stack"><button class="btn primary" data-act="closeModal">Los geht's</button></div>`);
   await deal();
 }
 function endGame(){
@@ -1969,8 +1731,7 @@ function rulesHTML(){
   <ul>
     <li><b>Modus Ponens:</b> aus X → Y und X folgt Y. <b>Modus Tollens:</b> aus X → Y und ¬Y folgt ¬X.</li>
     <li>Ins Holz gebrannte Steine sind <b>Vorgaben</b>. Sie zeigen, welcher Schluss gedacht ist. In jedes große Feld kommt genau ein Emoji, in die kleinen Felder davor bei Bedarf ein ¬ (nicht). Gelöst ist eine Tafel erst, wenn alle großen Felder belegt sind. Ab Level 4 sind manche Pfeile offen: Dort legst du selbst einen Pfeil →.</li>
-    <li>Gelöste Tafeln bleiben liegen. Ist das ganze Brett voll, bekommen <b>alle</b> ${TEAM_BONUS} Punkte, und nach einer <b>Blitzrunde</b> geht es ins nächste, größere Level. Danach werden die Leisten neu verteilt.</li>
-    <li>In der <b>Blitzrunde</b> liegen für alle dieselben Steine bereit, und alle legen gleichzeitig an dieselbe Tafel. Wer zuerst auf ein Feld legt, hat es. Jeder angelegte Stein bringt ${BLITZ_TILE_PTS} Punkte.</li>
+    <li>Gelöste Tafeln bleiben liegen. Ist das ganze Brett voll, bekommen <b>alle</b> ${TEAM_BONUS} Punkte, und es geht direkt ins nächste, größere Level. Danach werden die Leisten neu verteilt.</li>
     <li>Ist der Beutel leer, hat jeder noch einen Zug. Danach endet das Level, auch wenn das Brett nicht voll ist.</li>
     <li>Du musst einen Schluss nicht allein fertig legen. Angefangene Tafeln bleiben liegen, solange der Schluss noch gelingen kann, und die anderen können weiterlegen. Ein Stein, mit dem es nie mehr klappen würde, geht beim „Zug beenden“ zurück in die Leiste.</li>
     <li>Jeder bekommt die Punkte seiner eigenen Steine in einem Schluss. Wer ihn vollendet, bekommt den Bonus der Tafel, +${CHAIN_BONUS} je weiterem Schritt und +${GLITTER_BONUS} je Glitzerstein.</li>
@@ -2110,7 +1871,7 @@ function sparksAt(el){
     s.animate([{transform:'translate(-50%,-50%) scale(0)',opacity:1},{transform:`translate(calc(-50% + ${Math.cos(a)*d}px),calc(-50% + ${Math.sin(a)*d}px)) scale(1.2)`,opacity:0}],{duration:800,easing:'ease-out',fill:'both'}).onfinish=()=>s.remove();}
   navigator.vibrate?.(20);
 }
-// Mitmach-Tutorial für Kinder: erst nur Modus Ponens, dann nur Modus Tollens, dann eine Blitzrunde
+// Mitmach-Tutorial für Kinder: erst nur Modus Ponens, dann nur Modus Tollens
 const TUT_MP={rows:[['🌧️','→','E'],['E']],concl:['E']};
 const TUT_MT={rows:[['🐱','→','E'],['¬','E']],concl:['¬','E']};
 const TUT_NOT={rows:[['n','🌧️','→','🎉'],['n','E']],concl:['E']};
@@ -2168,16 +1929,14 @@ async function runTutorialFlow(){
     if(ph.setup){ph.setup();await sleep(600);}
     for(const st of ph.steps){
       if(!S.tutorial)return;
-      if(st.blitz)await tutBlitzStart();
       render();showTip('tip',st.t,st.sub,st.at);
       if(st.side)showTip('tip2',st.side.t,'',st.side.at);
-      if(st===ph.steps[ph.steps.length-1]&&!st.blitz&&!ph.noRing){ring(true);showTip('tip2','Die blaue Linie ist deine Zeit','',()=>$('#turnRing'));}
+      if(st===ph.steps[ph.steps.length-1]&&!ph.noRing){ring(true);showTip('tip2','Die blaue Linie ist deine Zeit','',()=>$('#turnRing'));}
       S.tutLive=true;
       const ok=await waitTask(st.task());
       S.tutLive=false;markTarget(null,null,null,false);fingerHide();hideTip('tip2');ring(false);
-      if(st.blitz){await sleep(1500);tutBlitzEnd();}
       if(!ok||!S.tutorial)return;
-      const okText=st.blitz?(S.lastBlitzMs?`Geschafft in ${secs(S.lastBlitzMs)}!`:'Zeit um! Im Spiel klappt’s.'):st.ok;
+      const okText=st.ok;
       const anchor=(st.okAt&&st.okAt())?st.okAt:st.at;
       showTip('tip','✓ '+okText,'',anchor,true);sparksAt(anchor());
       await sleep(1400);
@@ -2192,7 +1951,6 @@ function renderCoachBtns(){renderTop();}
 async function startTutorial(mode='solo'){
   S.tutMode=mode;
   closeModal();if(mode!=='group'){unsub(gameSubs);S.code=null;S.introCode=null;}
-  S.blitz=null;
   initState(['Du']);S.tutorial=true;S.turnTime=0;
   S.tafeln=[makeTafel('mini',0,0,'t0',TUT_MP)];
   S.players[0].rack=Array(8).fill(null);
@@ -2216,17 +1974,6 @@ function introVoteHTML(){
   const yes=ids.filter(id=>v.some(x=>x.uid===id&&(x.skip||x.done))).length,me=v.find(x=>x.uid===P.uid);
   return`<div class="vote"><span>Überspringen: ${yes} von ${ids.length} dafür</span><button class="btn" data-act="voteSkip">${me&&me.skip?'Stimme zurückziehen':'Dafür stimmen'}</button></div>`;
 }
-async function tutBlitzStart(){
-  S.tutKeep={cur:S.cur,status:S.status};
-  S.blitzSpec={level:1,kind:'mp',sec:30,id:'tut',tpl:{rows:[['n','🐱','→','n','E'],['n','E']],concl:['n','E']},
-    rack:['🎉','🌧️','🐱','¬','🎉'].map(s=>({id:uidT(),s,orange:false,glitter:false,cashed:true}))};
-  S.status='blitz';S.blitz=null;enterBlitz();await sleep(400);blitzGo();
-}
-function tutBlitzEnd(){
-  if(S.blitz){const r=S.blitz.results[0]||{};S.lastBlitzMs=r.ok?r.ms:0;clearInterval(S.blitz.timer);}
-  S.blitz=null;S.blitzSpec=null;Object.assign(S,S.tutKeep||{});layout();render();
-}
-
 /* ================= Zugzeit ================= */
 const T={key:null,start:0,last:0,warned:false,firing:false};
 const modalOpen=()=>!$('#modal').classList.contains('hidden');
@@ -2258,7 +2005,7 @@ setInterval(tickTurn,250);
 // Tutorial beenden: vor einem lokalen Spiel geht es direkt ins Spiel, sonst zurück zum Start
 function endTutorial(){
   S.tutorial=false;S.tutLive=false;fingerHide();hideTip('tip');hideTip('tip2');markTarget(null,null,null,false);renderTutBanner();
-  if(S.blitz)clearInterval(S.blitz.timer);S.blitz=null;S.blitzSpec=null;clearStory();
+  clearStory();
   $('#turnRing').classList.remove('on');
   if(S.tutMode==='local'&&S.pendingLocal){const p=S.pendingLocal;S.pendingLocal=null;startLocalGame(p.names,p.turnTime);}
   else ACT.home();
@@ -2442,7 +2189,6 @@ function subscribeGame(code){
     const docs=s.docs.map(d=>Object.assign(clone(d.data()),{_id:d.id}));
     L.liveAll=docs;
     const dr=docs.find(x=>x._id==='draft');S.draft=dr||null;
-    onBlitzBoard(docs.find(x=>x._id==='blitzboard'));
     L.intro=docs.filter(x=>x._id.startsWith('intro_'));if(S.introCode){renderCoachBtns();checkIntro();}
     if(S.screen==='game'&&!S.busy&&activeDraft()){renderRacks();renderBoard();}
   },snapErr));
@@ -2472,22 +2218,22 @@ async function onGameSnap(snap){
     if(!lm.skipped||lm.levelDone)await playMove(lm);else render();
     S.busy=false;
     if(S.ended&&!wasEnded)return endGame();
-    if(S.status==='blitz'){enterBlitz();return;}
+    if(S.status==='nextlevel'){render();advanceLevel(6000+Math.random()*3000);return;}
     render();turnNotice(lm);
   }else{
     render();
     if(S.ended&&!wasEnded)return endGame();
-    if(S.status==='blitz')enterBlitz();
+    if(S.status==='nextlevel')advanceLevel(4000+Math.random()*3000);
   }
 }
 async function enterGame(d,withDeal){
   unsub(listSubs);
   if(d.status==='intro'&&d.players.some(p=>p.id===P.uid)){S.introCode=d.code;S.code=d.code;L.realDoc=d;L.intro=[];return startTutorial('group');}
-  deserialize(d);S.online=true;S.tutorial=false;S.animTurn=d.lastMove?d.lastMove.turn:0;S.blitz=null;
+  deserialize(d);S.online=true;S.tutorial=false;S.animTurn=d.lastMove?d.lastMove.turn:0;
   showScreen('game');layout();
   if(withDeal)await deal();else{$('#boardHolder').classList.remove('pre');render();}
   if(S.ended)return endGame();
-  if(S.status==='blitz'){enterBlitz();return;}
+  if(S.status==='nextlevel'){advanceLevel(3000+Math.random()*2000);return;}
   if(S.status==='intro'){toast('Die Gruppe schaut gerade das Tutorial.','','turn',2500);return;}
   if(isMyTurn())toast(S.turn===1?'Du beginnst. Zieh einen Stein auf ein Feld.':'Du bist dran!','','turn',2600);
   else if(meIdx()<0)toast('Du schaust bei diesem Spiel zu.','','turn',2600);
@@ -2758,7 +2504,7 @@ async function introDone(){
 async function finishIntro(){
   const d=L.realDoc;if(!S.introCode||!d)return;
   S.introCode=null;S.tutorial=false;S.trunning=false;fingerHide();renderTutBanner();hideTip('tip');hideTip('tip2');
-  $('#coach').classList.add('hidden');closeModal();if(S.blitz)clearInterval(S.blitz.timer);S.blitz=null;
+  $('#coach').classList.add('hidden');closeModal();
   deserialize(d);S.online=true;S.animTurn=d.lastMove?d.lastMove.turn:0;
   showScreen('game');layout();await deal();
   if(S.ended)return endGame();
@@ -3097,7 +2843,7 @@ async function doMerge(d){
   while(S.busy)await sleep(300);
   try{await P.db.doc('games/'+S.code).set({...serialize(),status:'ended',rev:(S.rev||0)+1,updatedAt:Date.now()});}catch(e){}
   S.mergeTo=null;closeModal();clearStory();
-  if(S.blitz)clearInterval(S.blitz.timer);S.blitz=null;S.tutorial=false;S.introCode=null;
+  S.tutorial=false;S.introCode=null;
   S.rev=0;S.animTurn=-1;
   subscribeGame(d.code);S.merging=false;
   toast(`Du spielst jetzt in ${d.groupName||'einer Gruppe'} mit.`,'','turn',3500);
@@ -3154,7 +2900,7 @@ function groupInfo(g){
     merging:(ev.merges||{})[p.id]&&((E.games[(ev.merges[p.id]||{}).to]||{}).groupName||'')}));
   if(d.status==='ended')return{chip:'Fertig',cls:'over',meta:`Endstand nach Level ${d.level}`,players,d};
   if(d.status==='intro')return{chip:'Tutorial',cls:'intro',meta:'Die Gruppe schaut das Tutorial',players,d};
-  if(d.status==='blitz')return{chip:'Blitzrunde',cls:'blitz',meta:`Level ${d.level} von ${LEVELS.length} geschafft`,players,d,solved,total};
+  if(d.status==='nextlevel')return{chip:'Neues Level',cls:'blitz',meta:`Level ${d.level} von ${LEVELS.length} geschafft`,players,d,solved,total};
   return{chip:`Level ${d.level}/${LEVELS.length}`,cls:'',meta:`${solved} von ${total} Tafeln gelöst${g.bot?' · gegen Bot':''}`,players,d,solved,total};
 }
 function renderDash(){
@@ -3255,7 +3001,7 @@ const ACT={
   go(){const names=$$('#names input').map((i,k)=>i.value.trim()||'Spieler '+(k+1));
     S.pendingLocal={names,turnTime:S.localTime??DEFAULT_TURN_TIME};startTutorial('local');},
   tutSkip(){if(S.tutorial&&!S.introCode)endTutorial();},
-  home(){closeModal();fingerHide();hideTip('tip');hideTip('tip2');S.tutorial=false;S.introCode=null;renderTutBanner();unsub(gameSubs);unsub(listSubs);unsub(eventSubs);unsub(dashSubs);E.ev=null;if(S.blitz)clearInterval(S.blitz.timer);S.blitz=null;S.tutorial=false;S.ended=false;S.players=null;S.online=false;$('#coach').classList.add('hidden');$('#toasts').innerHTML='';showScreen('start');},
+  home(){closeModal();fingerHide();hideTip('tip');hideTip('tip2');S.tutorial=false;S.introCode=null;renderTutBanner();unsub(gameSubs);unsub(listSubs);unsub(eventSubs);unsub(dashSubs);E.ev=null;S.tutorial=false;S.ended=false;S.players=null;S.online=false;$('#coach').classList.add('hidden');$('#toasts').innerHTML='';showScreen('start');},
   again(){startLocalGame(S.players.map(p=>p.name),S.turnTime);},
   tutStart(){S.tutorial=false;$('#coach').classList.add('hidden');fingerHide();ACT.home();},
   coachNext(){coachNext();},
@@ -3280,7 +3026,6 @@ const ACT={
   ex3(){if(userOK())actExStart(3);},
   exgo(){if(userOK())actExGo();},
   undo(){if(userOK())actUndo();},
-  blitzGo(){blitzGo();},
   cancel(){if(userOK()){cancelMode();render();}},
   createEvent(){if(P.online)createEvent();},
   nameOk(){nameOk();},
