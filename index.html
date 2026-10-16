@@ -693,6 +693,17 @@ body{background:
 #levelcard .lc-bar{height:4px;border-radius:2px;background:var(--chip);overflow:hidden;margin-top:8px}
 #levelcard .lc-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--brass2),var(--brass1));transform-origin:left;animation:lcbar var(--dur,5s) linear forwards}
 @keyframes lcbar{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+
+/* Blitzrunde */
+.bzov{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;background:rgba(24,12,2,.58);padding:16px}
+.bzcard{background:#fff4dc;color:#3b2410;border-radius:20px;padding:18px 20px 16px;width:min(340px,92vw);text-align:center;box-shadow:0 18px 50px rgba(0,0,0,.45);border:2px solid #d9a441}
+.bzcard p{margin:6px 0;font-size:15px;line-height:1.35}
+.bzt{font-family:var(--serif);font-weight:800;font-size:24px;letter-spacing:-.02em;margin-bottom:4px}
+.bzname{font-weight:700;margin:2px 0 6px;color:#8a5a14}
+.bzbig{font-family:var(--serif);font-weight:800;font-size:44px;margin:4px 0!important;color:#b56a00}
+.bzcard .btn{margin-top:8px;padding:10px 26px;font-size:17px}
+.bzbar{height:4px;border-radius:2px;background:rgba(0,0,0,.12);overflow:hidden;margin-top:12px}
+.bzbar i{display:block;height:100%;background:linear-gradient(90deg,#d9a441,#f3d58b);transform-origin:left;animation:lcbar 7s linear forwards}
 </style>
 </head>
 <body>
@@ -783,7 +794,7 @@ body{background:
 </div>
 
 <script>
-const BUILD='20261015-1930';
+const BUILD='20261016-0718';
 'use strict';
 /* ================= Helpers ================= */
 const $=(s,e=document)=>e.querySelector(s), $$=(s,e=document)=>[...e.querySelectorAll(s)];
@@ -812,6 +823,7 @@ const TEAMS=[{name:'Füchse',icon:'🦊'},{name:'Bären',icon:'🐻'},{name:'Eul
 const MAX_PLAYERS=6;
 const MAX_NEW=4,DEFAULT_TURN_TIME=60,MAX_GROUP=4;
 const GLITTER_BONUS=10,CHAIN_BONUS=5,TEAM_BONUS=15,MOVES_PER_TURN=2,FADE_ROUNDS=3;
+const BZ_PTS=4,BZ_ALL=10,BZ_SEC=60,BZ_INTRO=7,BZ_GRACE=100000;   // Blitzrunde: Punkte je Stein, Bonus für alles richtig, Sekunden, Lesezeit, Wartezeit auf Nachzügler
 // Tafeln mit Vorgaben. 'E' = Feld für ein Emoji, 'n' = kleines Feld für ein optionales ¬,
 // alles andere ist fest vorgegeben (auch Emojis als Orientierung).
 const KINDS={
@@ -820,6 +832,9 @@ const KINDS={
                                               :{rows:[['n','E','→','n',B],['n','E']],concl:['n','E'],sol:[A,A,B]}},
   mt:{name:'Tollens',bonus:6,gen:(A,B,C,D,v)=>v?{rows:[[A,'→','n','E'],['n','E']],concl:['n','E'],sol:[B,B,A]}
                                               :{rows:[['E','→','n',B],['n','E']],concl:['n','E'],sol:[A,B,A]}},
+  // Tollens-Pflicht: Die Konklusion ¬A ist vorgegeben. Sie folgt nur über Modus Tollens.
+  mtx:{name:'Tollens',bonus:7,fixedConcl:true,gen:(A,B,C,D,v)=>v?{rows:[[A,'→','E'],['n','E']],concl:['¬',A],sol:[B,B]}
+                                                               :{rows:[[A,'→','n','E'],['E']],concl:['¬',A],sol:[B,B]}},
   chain:{name:'Kette',bonus:10,minDepth:2,gen:(A,B,C)=>({rows:[['n',A,'→','n','E'],['n','E','→','n',C],['n','E']],concl:['n','E'],sol:[B,B,A,C]})},
   oder:{name:'Oder',bonus:10,gen:(A,B,C)=>({rows:[['(',A,'∨','E',')','→','E'],['E','∨','E']],concl:['E'],sol:[B,C,A,B,C]})},
   boss:{name:'Endgegner',bonus:25,minDepth:2,boss:true,gen:(A,B,C)=>({rows:[['n','E','→','n','E'],['n','E','→','n','E'],['n','E']],concl:[C],sol:[A,B,B,C,A]})},
@@ -831,14 +846,14 @@ function genTpl(kind){const[A,B,C,D]=shuffle([...EMOJIS]);return KINDS[kind].gen
 const LEVELS=[
   {name:'Aufwärmen',bag:50,open:0,bands:[['mini','mini'],['mp','mt']],extra:['mini','mp','mt']},
   {name:'Eingrooven',bag:50,open:0,bands:[['mini','mp'],['mt','mp']],extra:['mp','mt','mini']},
-  {name:'Hin und zurück',bag:50,open:0,bands:[['mp','mt'],['mini','mt']],extra:['mt','mp','mini']},
-  {name:'Erste Lücken',bag:55,open:.15,bands:[['mp','mt'],['mini','mp']],extra:['mp','mt','mini']},
-  {name:'Die erste Kette',bag:55,open:.15,bands:[['mp','mt'],['mini','chain']],extra:['mp','mt','mini']},
-  {name:'Durchatmen',bag:55,open:.2,bands:[['mp','mt'],['mt','mp']],extra:['mp','mt','mini']},
-  {name:'Ketten und Lücken',bag:60,open:.25,bands:[['mp','mini'],['mt','chain']],extra:['mp','mt','mini']},
-  {name:'Doppelt hält besser',bag:60,open:.3,bands:[['mp','mt'],['chain','mini']],extra:['mp','mt','chain']},
-  {name:'Fast geschafft',bag:60,open:.35,bands:[['mp','mt'],['chain','mp']],extra:['mp','mt','chain']},
-  {name:'Finale',bag:65,open:.4,bands:[['mp','mt'],['chain','chain']],extra:['mp','mt','chain']}
+  {name:'Hin und zurück',bag:50,open:0,bands:[['mp','mtx'],['mini','mt']],extra:['mt','mp','mini']},
+  {name:'Erste Lücken',bag:55,open:.15,bands:[['mtx','mt'],['mini','mp']],extra:['mp','mt','mini']},
+  {name:'Die erste Kette',bag:55,open:.15,bands:[['mp','mtx'],['mini','chain']],extra:['mp','mtx','mini']},
+  {name:'Durchatmen',bag:55,open:.2,bands:[['mtx','mt'],['mt','mp']],extra:['mp','mtx','mini']},
+  {name:'Ketten und Lücken',bag:60,open:.25,bands:[['mp','mtx'],['mt','chain']],extra:['mp','mtx','mini']},
+  {name:'Doppelt hält besser',bag:60,open:.3,bands:[['mtx','mt'],['chain','mini']],extra:['mp','mtx','chain']},
+  {name:'Fast geschafft',bag:60,open:.35,bands:[['mtx','mt'],['chain','mp']],extra:['mp','mtx','chain']},
+  {name:'Finale',bag:65,open:.4,bands:[['mtx','mtx'],['chain','chain']],extra:['mp','mtx','chain']}
 ];
 const NEXT={L:'BC',N:'LO',B:'LNO',O:'LNO',C:'BC'};
 const RULES={
@@ -896,7 +911,7 @@ function localDefaults(){
 }
 function initState(names,ids=[],online=false,teams=[],turnTime=DEFAULT_TURN_TIME){
   const lvl=1,tafeln=buildLevel(1,names.length),bag=makeBagFor(tafeln,1);
-  Object.assign(S,localDefaults(),{online,tutorial:false,ended:false,status:'playing',code:S.code||null,
+  Object.assign(S,localDefaults(),{online,tutorial:false,ended:false,status:'playing',blitz:null,code:S.code||null,
     n:names.length,turnTime,cur:0,turn:1,rev:1,passes:0,exchanged:false,lastMove:null,animTurn:0,level:lvl,lastCall:null,
     players:names.map((nm,i)=>({id:ids[i]||null,name:nm,score:0,rack:Array(8).fill(null),color:COLORS[i%COLORS.length],team:teams[i]??null})),
     tafeln,bag});
@@ -904,13 +919,13 @@ function initState(names,ids=[],online=false,teams=[],turnTime=DEFAULT_TURN_TIME
 function serialize(){
   return clone({code:S.code,status:S.status,hostId:S.hostId||null,hostName:S.hostName||'',createdAt:S.createdAt||Date.now(),updatedAt:Date.now(),
     players:S.players,playerIds:S.players.map(p=>p.id).filter(Boolean),cur:S.cur,tafeln:S.tafeln,bag:S.bag,level:S.level,lastCall:S.lastCall,
-    turn:S.turn,rev:S.rev,passes:S.passes,exchanged:S.exchanged,lastMove:S.lastMove,v:5,turnTime:S.turnTime??DEFAULT_TURN_TIME,eventCode:S.eventCode||null,groupName:S.groupName||null});
+    blitz:S.blitz||null,turn:S.turn,rev:S.rev,passes:S.passes,exchanged:S.exchanged,lastMove:S.lastMove,v:5,turnTime:S.turnTime??DEFAULT_TURN_TIME,eventCode:S.eventCode||null,groupName:S.groupName||null});
 }
 function deserialize(d0){
   const d=clone(d0);
   Object.assign(S,localDefaults(),{draft:S.draft,code:d.code,status:d.status,hostId:d.hostId,hostName:d.hostName,createdAt:d.createdAt,
     players:d.players,n:d.players.length,cur:d.cur,tafeln:d.tafeln,bag:d.bag||[],turn:d.turn,rev:d.rev,level:d.level||1,lastCall:d.lastCall??null,
-    eventCode:d.eventCode||null,groupName:d.groupName||null,turnTime:d.turnTime??DEFAULT_TURN_TIME,passes:d.passes||0,exchanged:!!d.exchanged,lastMove:d.lastMove||null,ended:d.status==='ended'});
+    blitz:d.blitz||null,eventCode:d.eventCode||null,groupName:d.groupName||null,turnTime:d.turnTime??DEFAULT_TURN_TIME,passes:d.passes||0,exchanged:!!d.exchanged,lastMove:d.lastMove||null,ended:d.status==='ended'});
   takeSnap();
 }
 const curP=()=>S.players[S.cur];
@@ -921,9 +936,9 @@ function teamTotals(){
   return Object.entries(t).map(([k,v])=>({team:+k,score:v})).sort((a,b)=>b.score-a.score);
 }
 const meIdx=()=>S.online?S.players.findIndex(p=>p.id===P.uid):S.cur;
-const isMyTurn=()=>!S.ended&&S.status==='playing'&&(S.online?S.cur===meIdx():true);
+const isMyTurn=()=>!S.ended&&(S.status==='playing'||!!S.bz)&&(S.online?S.cur===meIdx():true);
 const dockIdx=()=>{const m=meIdx();return m>=0?m:S.cur;};
-const userOK=()=>S.screen==='game'&&!S.busy&&(!S.tutorial||S.tutLive)&&!S.ended&&isMyTurn();
+const userOK=()=>S.screen==='game'&&!S.busy&&(!S.tutorial||S.tutLive)&&!S.ended&&(!S.bz||S.bz.running)&&isMyTurn();
 const boardTafeln=()=>S.tafeln;
 const tafel=id=>boardTafeln().find(t=>t.id===id);
 const rowOf=(tf,r)=>r==='c'?tf.concl:tf.rows[r];
@@ -1041,7 +1056,7 @@ function evalTafel(tf,who){
   const premRows=tf.rows.filter(r=>entries(r).length);
   if(!premRows.length)return fail('Über der Linie fehlen noch Prämissen.','Prämissen fehlen');
   const cE=entries(tf.concl);
-  if(!cE.length||cE.every(e=>e.fixed&&!tf.concl.locked))return fail('Leg die Konklusion in die blaue Zeile unter der Linie.','Konklusion fehlt');
+  if(!cE.length||cE.every(e=>e.fixed&&!tf.concl.locked&&!K.fixedConcl))return fail('Leg die Konklusion in die blaue Zeile unter der Linie.','Konklusion fehlt');
   const prem=[];
   for(const row of premRows){
     try{prem.push(parse(entries(row).map(e=>e.tile.s)));}
@@ -1117,6 +1132,12 @@ function statusHTML(){
   return`<span class="status open">Passt bisher, noch offen</span>`;
 }
 function controlsHTML(){
+  if(S.bz){
+    const b=S.bz;
+    if(!b.running)return`<div class="controls"><span class="waiting">Gleich geht's los<span class="dots"><i>.</i><i>.</i><i>.</i></span></span></div>`;
+    return`<div class="controls"><div class="timer"><div class="bar" id="bzBar"></div><span id="bzTime"></span></div>${hasNew()?'<button class="btn icon" data-act="undo" title="Alles zurücknehmen" aria-label="Alles zurücknehmen">↺</button>':''}</div>`;
+  }
+  if(S.status==='blitz')return`<div class="controls"><span class="waiting">Blitzrunde: Warte auf die anderen<span class="dots"><i>.</i><i>.</i><i>.</i></span></span></div>`;
   if(!isMyTurn())return`<div class="controls"><span class="waiting">${esc(curP().name)} ist dran<span class="dots"><i>.</i><i>.</i><i>.</i></span></span></div>`;
   if(S.mode==='exchange'){
     const k=S.exSel.length,ok=k===S.exN&&S.bag.length>=k;
@@ -1151,9 +1172,9 @@ function tilesHTML(rack,p,active){
 function rackwrapHTML(i,inDock){
   const Pl=S.players[i],active=i===S.cur&&!S.ended;
   const you=S.online&&Pl.id===P.uid?' <span class="you">(du)</span>':'';
-  const moves=inDock&&isMyTurn()?`<span class="moves${newCount()>=MAX_NEW?' full':''}" title="Neue Steine in diesem Zug">Neu ${newCount()}/${MAX_NEW}</span>`:'';
+  const moves=inDock&&isMyTurn()&&!S.bz?`<span class="moves${newCount()>=MAX_NEW?' full':''}" title="Neue Steine in diesem Zug">Neu ${newCount()}/${MAX_NEW}</span>`:'';
   const tmr='';
-  const rack=tilesHTML(Pl.rack,i,active);
+  const rack=tilesHTML(S.bz&&i!==S.bz.me?Array(Pl.rack.length).fill(null):Pl.rack,i,active);
   return`<div class="rackwrap${active?' active':''}" data-player="${i}">
     <div class="head">${Pl.team!=null?`<span class="ticon" title="${TEAMS[Pl.team].name}">${TEAMS[Pl.team].icon}</span>`:`<span class="dot" style="background:${Pl.color}"></span>`}<span class="nm">${esc(Pl.name)}${you}</span><span class="sc" id="score-${i}">${displayScore(i)}</span>${moves}${tmr}</div>
     <div class="row"><div class="rack">${rack}</div></div>
@@ -1254,6 +1275,7 @@ function renderTop(){
     else el.innerHTML='<button class="votepill" data-act="tutSkip">Überspringen ⏭</button>';
     $('#bagInfo').textContent='';return;
   }
+  if(S.bz||S.status==='blitz'){el.innerHTML='<b>⚡ Blitzrunde</b>';$('#bagInfo').textContent='';return;}
   const lv=LEVELS[S.level-1];
   el.innerHTML=`${S.groupName?`<span class="nm">${esc(S.groupName)}</span>`:''}<b>Level ${S.level}</b><span class="nm">${esc(lv.name)}</span><span class="prog">${solvedCount()}/${S.tafeln.length}</span>`;
   $('#bagInfo').textContent=S.lastCall!=null?`Letzte Züge: ${S.lastCall}`:`Beutel: ${S.bag.length}`;
@@ -1321,7 +1343,7 @@ function shakeRow(tid,r){const el=rowEl(tid,r);if(!el)return;el.classList.remove
 function tafelCenter(tid){const el=$(`.tafel[data-tid="${tid}"]`);if(!el)return{x:innerWidth/2,y:innerHeight/2};const b=el.getBoundingClientRect();return{x:b.left+b.width/2,y:b.top+b.height/2};}
 async function burst(c,html,ms=1000){
   const bu=document.createElement('div');bu.className='burst';bu.innerHTML=html;bu.style.left=c.x+'px';bu.style.top=c.y+'px';$('#fx').appendChild(bu);
-  await bu.animate([{transform:'rotate(-20deg) scale(0)'},{transform:'rotate(6deg) scale(1.12)',offset:.55},{transform:'rotate(-4deg) scale(1)'}],{duration:500,easing:'cubic-bezier(.3,1.5,.5,1)',fill:'forwards'}).finished;
+  await Promise.race([sleep(900),bu.animate([{transform:'rotate(-20deg) scale(0)'},{transform:'rotate(6deg) scale(1.12)',offset:.55},{transform:'rotate(-4deg) scale(1)'}],{duration:500,easing:'cubic-bezier(.3,1.5,.5,1)',fill:'forwards'}).finished]);
   await sleep(ms);
   bu.animate([{opacity:1},{opacity:0,transform:'rotate(0deg) scale(.6)'}],{duration:260,fill:'forwards'}).onfinish=()=>bu.remove();
 }
@@ -1352,8 +1374,8 @@ async function flyScore(i,pts,from){
     const tb=target.getBoundingClientRect(),dx=tb.left+tb.width/2-from.x,dy=tb.top+tb.height/2-from.y;
     const f=document.createElement('div');f.className='flyscore';f.textContent='+'+pts;f.style.left=from.x+'px';f.style.top=from.y+'px';
     $('#fx').appendChild(f);
-    await f.animate([{transform:'translate(0,0) scale(1)',opacity:1},{transform:`translate(${dx*.5}px,${dy*.5-60}px) scale(1.5)`,offset:.45},{transform:`translate(${dx}px,${dy}px) scale(.6)`,opacity:.3}],
-      {duration:850,easing:'cubic-bezier(.45,0,.35,1)',fill:'forwards'}).finished;
+    await Promise.race([sleep(1200),f.animate([{transform:'translate(0,0) scale(1)',opacity:1},{transform:`translate(${dx*.5}px,${dy*.5-60}px) scale(1.5)`,offset:.45},{transform:`translate(${dx}px,${dy}px) scale(.6)`,opacity:.3}],
+      {duration:850,easing:'cubic-bezier(.45,0,.35,1)',fill:'forwards'}).finished]);
     f.remove();
   }
   S.scoreHold[i]=Math.max(0,(S.scoreHold[i]||0)-pts);
@@ -1361,6 +1383,8 @@ async function flyScore(i,pts,from){
   if(t2){t2.textContent=displayScore(i);t2.classList.remove('bump');void t2.offsetWidth;t2.classList.add('bump');}
 }
 // Zug zeigen – auf allen Geräten gleich
+// Animationen dürfen nie das Weiterspielen blockieren (z. B. wenn der Tab im Hintergrund liegt)
+const playSafe=lm=>Promise.race([playMove(lm),sleep(9000)]);
 async function playMove(lm){
   (lm.placed||[]).forEach(id=>S.popIds.add(id));
   const solved=lm.solved||[];
@@ -1405,7 +1429,7 @@ function canUse(p,slot){
 const newCount=()=>{let n=0;allEntries(e=>{if(e.tent)n++;});return n;};
 function insertEntry(info,tid,r,k,kind){
   const tf=tafel(tid),row=rowOf(tf,r);
-  if(kind==='new'&&!S.tutorial&&newCount()>=MAX_NEW)return{msg:`Pro Zug darfst du höchstens ${MAX_NEW} neue Steine legen. Nimm einen zurück oder beende den Zug.`};
+  if(kind==='new'&&!S.tutorial&&!S.bz&&newCount()>=MAX_NEW)return{msg:`Pro Zug darfst du höchstens ${MAX_NEW} neue Steine legen. Nimm einen zurück oder beende den Zug.`};
   const err=insertError(tf,r,k,info.tile.s,kind);if(err)return err;
   row.slots[k]=kind==='move'?{tile:info.tile,by:info.by,moved:true}:{tile:info.tile,by:S.cur,tent:true,from:info.from,slot:info.slot};
   return null;
@@ -1465,7 +1489,7 @@ function finishLevelIfDue(lm){
   lm.levelDone=true;lm.team=full?TEAM_BONUS:0;
   if(full)S.players.forEach(p=>p.score+=TEAM_BONUS);
   if(S.level>=LEVELS.length){S.status='ended';return true;}
-  S.status='nextlevel';
+  S.status='blitz';S.blitz={id:uidT(),at:Date.now()};
   return true;
 }
 function tickLastCall(){
@@ -1514,7 +1538,7 @@ async function actEndTurn(){
   if(!levelOver&&!S.tutorial){S.cur=(S.cur+1)%S.n;S.exchanged=false;}
   S.turn++;S.rev++;S.lastMove=lm;S.animTurn=S.turn;
   writeGame();
-  await playMove(lm);
+  await playSafe(lm);
   takeSnap();S.busy=false;
   afterMove(lm);
 }
@@ -1528,19 +1552,20 @@ async function passTurn(reason){
   if(!levelOver){S.cur=(S.cur+1)%S.n;S.exchanged=false;}
   S.turn++;S.rev++;S.lastMove=lm;S.animTurn=S.turn;
   writeGame();takeSnap();
-  if(levelOver){S.busy=true;await playMove(lm);S.busy=false;}
+  if(levelOver){S.busy=true;await playSafe(lm);S.busy=false;}
   else render();
   afterMove(lm);
 }
 function afterMove(lm){
   if(S.status==='ended'){S.ended=true;return endGame();}
-  if(S.status==='nextlevel'){advanceLevel(0);return;}
+  if(S.status==='blitz'){render();startBz();return;}
   render();turnNotice(lm);
 }
 function finishGame(){closeModal();S.status='ended';S.ended=true;S.rev++;writeGame();endGame();}
 
-function nextLevelDoc(d,joiners=[]){
+function nextLevelDoc(d,joiners=[],res=[]){
   const lvl=d.level+1;
+  res.forEach(x=>{if(d.players[x.i])d.players[x.i].score+=x.pts;});
   // Nachrücker aus Bot-Spielen kommen beim Levelwechsel dazu (höchstens MAX_GROUP Personen)
   joiners.forEach(j=>{
     if(d.players.length>=MAX_GROUP||d.players.some(p=>p.id===j.uid))return;
@@ -1549,46 +1574,229 @@ function nextLevelDoc(d,joiners=[]){
   });
   d.tafeln=buildLevel(lvl,d.players.length);d.bag=makeBagFor(d.tafeln,lvl);
   d.players.forEach(p=>p.rack=Array(8).fill(null));fillRacksOf(d.players,d.bag);
-  Object.assign(d,{level:lvl,status:'playing',cur:(lvl-1)%d.players.length,turn:d.turn+1,rev:d.rev+1,passes:0,exchanged:false,lastCall:null,
-    lastMove:{turn:d.turn+1,kind:'level',level:lvl,by:-1}});
+  Object.assign(d,{level:lvl,status:'playing',blitz:null,cur:(lvl-1)%d.players.length,turn:d.turn+1,rev:d.rev+1,passes:0,exchanged:false,lastCall:null,
+    lastMove:{turn:d.turn+1,kind:'level',level:lvl,blitz:[...res].sort((a,b)=>b.pts-a.pts),by:-1}});
   return d;
 }
-// Level geschafft: direkt ins nächste. Der, der den Zug gemacht hat, schaltet sofort weiter;
-// alle anderen warten kurz und springen ein, falls er weg ist (nur einer kommt durch).
-let advancing=false;
-async function advanceLevel(delay=0){
-  if(advancing)return;advancing=true;
+
+/* ================= Blitzrunde =================
+   Ist ein Brett voll, bekommt jeder eine eigene Aufgabe: drei Tafeln und genau die passenden Steine.
+   Die Aufgabe hat nur eine Lösung. Jeder richtige Stein zählt. Die Aufgabe läuft nur auf dem eigenen Gerät,
+   das Ergebnis wird als kleines Dokument gemeldet. Danach geht es für alle gemeinsam ins nächste Level. */
+const bzCache=new Map(),bzDone=new Set();
+function bzSlots(tf){
+  const out=[];
+  [...tf.rows,tf.concl].forEach((row,ri)=>row.types.forEach((ty,k)=>{if(ty==='E'||ty==='n')out.push({r:ri===tf.rows.length?'c':ri,k,ty});}));
+  return out;
+}
+// alle gültigen Belegungen einer Tafel-Vorlage (Emoji-Felder und ¬-Felder)
+function bzSolutions(kind,tpl){
+  const key=kind+JSON.stringify(tpl);
+  if(bzCache.has(key))return bzCache.get(key);
+  const tf=makeTafel(kind,0,0,'g',tpl,0),sl=bzSlots(tf),out=[];
+  const rec=i=>{
+    if(i===sl.length){if(evalTafel(tf,0).ok)out.push(sl.map(s=>{const e=rowOf(tf,s.r).slots[s.k];return e?e.tile.s:null;}));return;}
+    const s=sl[i],row=rowOf(tf,s.r);
+    for(const o of(s.ty==='E'?EMOJIS:[null,'¬'])){row.slots[s.k]=o?{tile:{s:o},by:0}:null;rec(i+1);}
+    row.slots[s.k]=null;
+  };
+  rec(0);
+  if(bzCache.size>300)bzCache.clear();
+  bzCache.set(key,out);return out;
+}
+// Wie viele verschiedene Belegungen gibt es, die alle Steine genau einmal verwenden und alle Tafeln lösen? (zählt bis 2)
+function bzCount(tafeln,pieces){
+  const cnt={};pieces.forEach(x=>cnt[x]=(cnt[x]||0)+1);
+  const groups=tafeln.map(tf=>bzSlots(tf).filter(s=>!rowOf(tf,s.r).slots[s.k]));
+  let found=0,left=pieces.length;
+  const rec=(g,i)=>{
+    if(found>1)return;
+    if(g===tafeln.length){if(left===0)found++;return;}
+    if(i===groups[g].length){if(evalTafel(tafeln[g],0).ok)rec(g+1,0);return;}
+    const s=groups[g][i],row=rowOf(tafeln[g],s.r);
+    let cap=groups[g].length-i-1;for(let h=g+1;h<groups.length;h++)cap+=groups[h].length;
+    const opts=s.ty==='E'?EMOJIS.filter(e=>cnt[e]>0):(cnt['¬']>0?['¬']:[]);
+    for(const o of opts){
+      if(left-1>cap)continue;
+      cnt[o]--;left--;row.slots[s.k]={tile:{s:o},by:0};
+      rec(g,i+1);
+      row.slots[s.k]=null;cnt[o]++;left++;
+    }
+    if(s.ty==='n'&&left<=cap)rec(g,i+1);              // ¬-Feld bleibt leer
+  };
+  rec(0,0);
+  return found;
+}
+function makeChallenge(level){
+  const pool=level<=2?['mini','mp','mt']:level<=4?['mini','mp','mt','mtx']:['mp','mt','mtx','mp'];
+  for(let at=0;at<150;at++){
+    const tafeln=[],target={};
+    let ok=true,tries=0;
+    for(let i=0;i<3&&ok;i++){
+      const kind=pool[Math.random()*pool.length|0],tpl=genTpl(kind),sols=bzSolutions(kind,tpl);
+      if(!sols.length){ok=false;break;}
+      const sol=sols[Math.random()*sols.length|0];
+      const tf=makeTafel(kind,0,0,'b'+i,tpl,0),give=.2+Math.random()*.25;
+      bzSlots(tf).forEach((sl,j)=>{
+        const row=rowOf(tf,sl.r);
+        if(sol[j]&&Math.random()<give){row.slots[sl.k]=fixedTile(sol[j]);row.types[sl.k]='F';}
+        else if(sol[j])target[`${tf.id}:${sl.r}:${sl.k}`]=sol[j];
+      });
+      tafeln.push(tf);
+    }
+    if(!ok)continue;
+    const pieces=Object.values(target);
+    if(pieces.length<4||pieces.length>8)continue;
+    if(bzCount(tafeln,pieces)!==1)continue;
+    const rack=Array(8).fill(null);
+    shuffle([...pieces]).forEach((sym,i)=>{rack[i]=Object.assign(newTile(sym),{orange:false,glitter:false,cashed:true});});
+    return{tafeln,rack,target,total:pieces.length};
+  }
+  return null;
+}
+function bzScore(b){
+  let n=0;
+  Object.entries(b.ch.target).forEach(([key,sym])=>{
+    const[tid,r,k]=key.split(':'),tf=S.tafeln.find(t=>t.id===tid);if(!tf)return;
+    const e=rowOf(tf,r==='c'?'c':+r).slots[+k];
+    if(e&&!e.fixed&&e.tile.s===sym)n++;
+  });
+  return n;
+}
+function bzPts(n,total){return n*BZ_PTS+(n>0&&n===total?BZ_ALL:0);}
+function bzOverlay(html){
+  let ov=$('#bzov');if(!ov){ov=document.createElement('div');ov.id='bzov';ov.className='bzov';document.body.appendChild(ov);}
+  ov.innerHTML=`<div class="bzcard">${html}</div>`;return ov;
+}
+function bzClearOverlay(){const ov=$('#bzov');if(ov)ov.remove();}
+function startBz(){
+  if(S.bz||S.tutorial||S.status!=='blitz'||!S.blitz)return;
+  const id=S.blitz.id;
+  if(S.online){
+    const me=meIdx();if(me<0)return;                          // Zuschauer machen nicht mit
+    if(bzDone.has(id)||(L.liveAll||[]).some(x=>x._id==='bz_'+P.uid&&x.id===id))return;
+    return bzBegin(me);
+  }
+  S.bzLocal={idx:0,res:[]};
+  bzBegin(0);
+}
+function bzBegin(me){
+  const ch=makeChallenge(S.level);
+  if(!ch){bzSkip(me);return;}
+  S.bz={id:S.blitz.id,me,ch,running:false,over:false,stash:{tafeln:S.tafeln,rack:S.players[me].rack,cur:S.cur}};
+  S.tafeln=ch.tafeln;S.players[me].rack=ch.rack;S.cur=me;S.sel=null;S.mode='place';S.popIds=new Set();S.fresh=new Set(ch.rack.filter(Boolean).map(t=>t.id));
+  takeSnap();layout();render();
+  const b=S.bz;
+  bzOverlay(`<div class="bzt">⚡ Blitzrunde</div>${S.online?'':`<div class="bzname">${esc(S.players[me].name)} ist dran</div>`}
+    <p>Du hast genau die richtigen Steine für <b>drei Tafeln</b>. Leg sie in <b>${BZ_SEC} Sekunden</b> so, dass alle Schlüsse stimmen.</p>
+    <p>Jeder richtige Stein bringt <b>${BZ_PTS} Punkte</b>.</p>
+    <button class="btn primary" data-act="bzGo">Los!</button><div class="bzbar"><i style="animation-duration:${BZ_INTRO}s"></i></div>`);
+  b.introT=setTimeout(()=>bzGo(),BZ_INTRO*1000);
+}
+function bzSkip(me){          // Notfall: Aufgabe konnte nicht erzeugt werden, niemand verliert dadurch etwas
+  if(S.online){bzDone.add(S.blitz.id);P.db.doc(`games/${S.code}/live/bz_${P.uid}`).set({uid:P.uid,id:S.blitz.id,n:0,total:0,at:Date.now()}).catch(()=>{});return;}
+  S.bzLocal.res.push({i:me,n:0,total:0,pts:0});bzNextLocal();
+}
+function bzGo(){
+  const b=S.bz;if(!b||b.running||b.over)return;
+  clearTimeout(b.introT);bzClearOverlay();
+  b.running=true;b.t0=performance.now();
+  b.timer=setInterval(()=>bzTick(b),200);
+  render();bzTick(b);
+}
+function bzTick(b){
+  if(S.bz!==b||!b.running)return;
+  const left=Math.max(0,BZ_SEC*1000-(performance.now()-b.t0));
+  const t=$('#bzTime'),bar=$('#bzBar');
+  if(t)t.textContent='⚡ '+Math.ceil(left/1000)+' s';
+  if(bar)bar.style.width=(100*left/(BZ_SEC*1000))+'%';
+  if(left<=0)return bzEnd(b);
+  if(bzScore(b)===b.ch.total&&!S.drag)bzEnd(b);
+}
+function bzAbort(){
+  const b=S.bz;
+  if(b){clearInterval(b.timer);clearTimeout(b.introT);S.bz=null;}
+  bzClearOverlay();
+}
+function bzEnd(b){
+  if(S.bz!==b||b.over)return;
+  b.over=true;clearInterval(b.timer);clearTimeout(b.introT);
+  if(S.drag){S.drag=null;}
+  const n=bzScore(b),total=b.ch.total,pts=bzPts(n,total);
+  S.tafeln=b.stash.tafeln;S.players[b.me].rack=b.stash.rack;S.cur=b.stash.cur;S.bz=null;S.sel=null;S.mode='place';
+  takeSnap();layout();
+  const msg=n===total?'Alles richtig!':`${n} von ${total} Steinen richtig`;
+  if(S.online){
+    bzDone.add(b.id);
+    bzOverlay(`<div class="bzt">⚡ ${msg}</div><p class="bzbig">+${pts}</p><p>Warte kurz auf die anderen …</p>`);
+    P.db.doc(`games/${S.code}/live/bz_${P.uid}`).set({uid:P.uid,id:b.id,n,total,at:Date.now()}).catch(dbErr);
+    render();bzFinCheck();
+  }else{
+    S.bzLocal.res.push({i:b.me,n,total,pts});
+    bzOverlay(`<div class="bzt">⚡ ${msg}</div><div class="bzname">${esc(S.players[b.me].name)}</div><p class="bzbig">+${pts}</p>`);
+    render();
+    setTimeout(bzNextLocal,2600);
+  }
+}
+async function bzNextLocal(){
+  const L2=S.bzLocal;if(!L2||S.status!=='blitz')return;
+  L2.idx++;
+  if(L2.idx<S.players.length){bzClearOverlay();bzBegin(L2.idx);return;}
+  bzClearOverlay();
+  const d=nextLevelDoc(serialize(),[],L2.res);S.bzLocal=null;
+  deserialize(d);S.animTurn=d.lastMove.turn;
+  await levelIntro(d.lastMove,true);
+}
+// Online: Sind alle fertig (oder ist die Frist um), schaltet einer von ihnen ins nächste Level
+let bzFin=false,bzFinAt=0;
+function bzFinCheck(){
+  if(!S.online||S.screen!=='game'||S.status!=='blitz'||!S.blitz||S.bz||!S.players)return;
+  const id=S.blitz.id,humans=S.players.filter(p=>p.id&&!p.bot).map(p=>p.id);
+  const got=(L.liveAll||[]).filter(x=>x._id.startsWith('bz_')&&x.id===id).map(x=>x.uid);
+  const late=Date.now()-(S.blitz.at||0)>BZ_GRACE;
+  const mineDone=bzDone.has(id)||meIdx()<0;
+  if((mineDone||late)&&(late||humans.every(u=>got.includes(u)||isAway(u))))finalizeBlitz(id);
+}
+setInterval(bzFinCheck,2000);
+async function finalizeBlitz(id){
+  if(bzFin&&Date.now()-bzFinAt<15000)return;bzFin=true;bzFinAt=Date.now();
   try{
-    if(delay)await sleep(delay);
-    if(!S.online){const d=nextLevelDoc(serialize(),[]);deserialize(d);S.animTurn=d.lastMove.turn;await levelIntro(d.lastMove,true);return;}
     const joiners=(L.liveAll||[]).filter(x=>x._id.startsWith('join_')).map(x=>({uid:x.uid,name:x.name,score:x.score}));
     const ref=P.db.doc('games/'+S.code);let nd=null;
     await P.db.runTransaction(async tx=>{
       const cur=(await tx.get(ref)).data();
-      if(!cur||cur.status!=='nextlevel'){nd=null;return;}
-      nd=nextLevelDoc(cur,joiners);tx.set(ref,nd);
+      if(!cur||cur.status!=='blitz'||!cur.blitz||cur.blitz.id!==id){nd=null;return;}
+      const res=[];
+      for(let i=0;i<cur.players.length;i++){
+        const p=cur.players[i];let n=0,total=6;
+        if(p.bot)n=Math.round(total*(.5+Math.random()*.35));
+        else if(p.id){const sn=await tx.get(P.db.doc(`games/${S.code}/live/bz_${p.id}`));const x=sn.exists?sn.data():null;if(x&&x.id===id){n=x.n;total=x.total||0;}}
+        res.push({i,n,total,pts:bzPts(n,total)});
+      }
+      nd=nextLevelDoc(cur,joiners,res);tx.set(ref,nd);
     });
-    if(nd&&(nd.rev||0)>(S.rev||0)){deserialize(nd);S.online=true;S.animTurn=nd.lastMove.turn;await levelIntro(nd.lastMove,true);}
-  }catch(e){console.warn('advanceLevel',e);}
-  finally{advancing=false;}
+    if(nd&&(nd.rev||0)>(S.rev||0)){bzAbort();deserialize(nd);S.online=true;S.animTurn=nd.lastMove.turn;await levelIntro(nd.lastMove,true);}
+  }catch(e){console.warn('finalizeBlitz',e);dbErr(e);}
+  finally{bzFin=false;}
 }
 // Kurze Karte beim Levelwechsel. Sie blendet sich selbst aus und blockiert nichts:
 // Austeilen, Bot und Zugzeit laufen sofort weiter. Ein Tipp schließt sie früher.
 function showLevelCard(lm){
   const lv=LEVELS[lm.level-1];
-  const ms=3800;
+  const rows=(lm.blitz||[]).map((x,k)=>`<div><span>${k+1}.</span><span>${esc(S.players[x.i]?S.players[x.i].name:'?')}</span><span class="p">${x.n} von ${x.total}, +${x.pts}</span></div>`).join('');
+  const ms=rows?6500:3800;
   let el=$('#levelcard');if(!el){el=document.createElement('div');el.id='levelcard';document.body.appendChild(el);}
   clearTimeout(el._t);
   el.style.setProperty('--dur',ms+'ms');
   el.innerHTML=`<h3>Level ${lm.level}: ${esc(lv.name)}</h3>
-    <div class="lc-sub">Geschafft! Das nächste Brett wartet.</div>
+    ${rows?`<div class="lc-sub">⚡ Blitzrunde</div><div class="rank">${rows}</div>`:'<div class="lc-sub">Geschafft! Das nächste Brett wartet.</div>'}
     <div class="lc-sub">${esc(curP().name)} beginnt.</div><div class="lc-bar"><i></i></div>`;
   el.classList.remove('on');void el.offsetWidth;el.classList.add('on');
   const hide=()=>{el.classList.remove('on');};
   el.onclick=hide;el._t=setTimeout(hide,ms);
 }
 async function levelIntro(lm,withDeal){
-  clearStory();closeModal();
+  clearStory();closeModal();bzClearOverlay();
   showLevelCard(lm);
   layout();
   if(withDeal)await deal();else render();
@@ -1732,6 +1940,7 @@ function rulesHTML(){
     <li><b>Modus Ponens:</b> aus X → Y und X folgt Y. <b>Modus Tollens:</b> aus X → Y und ¬Y folgt ¬X.</li>
     <li>Ins Holz gebrannte Steine sind <b>Vorgaben</b>. Sie zeigen, welcher Schluss gedacht ist. In jedes große Feld kommt genau ein Emoji, in die kleinen Felder davor bei Bedarf ein ¬ (nicht). Gelöst ist eine Tafel erst, wenn alle großen Felder belegt sind. Ab Level 4 sind manche Pfeile offen: Dort legst du selbst einen Pfeil →.</li>
     <li>Gelöste Tafeln bleiben liegen. Ist das ganze Brett voll, bekommen <b>alle</b> ${TEAM_BONUS} Punkte, und es geht direkt ins nächste, größere Level. Danach werden die Leisten neu verteilt.</li>
+    <li><b>⚡ Blitzrunde:</b> Ist das Brett voll, bekommt jeder eine eigene Aufgabe: drei Tafeln und genau die passenden Steine. Du hast ${BZ_SEC} Sekunden, sie richtig zu legen. Jeder richtige Stein bringt ${BZ_PTS} Punkte, alles richtig ${BZ_ALL} extra.</li>
     <li>Ist der Beutel leer, hat jeder noch einen Zug. Danach endet das Level, auch wenn das Brett nicht voll ist.</li>
     <li>Du musst einen Schluss nicht allein fertig legen. Angefangene Tafeln bleiben liegen, solange der Schluss noch gelingen kann, und die anderen können weiterlegen. Ein Stein, mit dem es nie mehr klappen würde, geht beim „Zug beenden“ zurück in die Leiste.</li>
     <li>Jeder bekommt die Punkte seiner eigenen Steine in einem Schluss. Wer ihn vollendet, bekommt den Bonus der Tafel, +${CHAIN_BONUS} je weiterem Schritt und +${GLITTER_BONUS} je Glitzerstein.</li>
@@ -1881,7 +2090,7 @@ function tutRack(list){
   return r;
 }
 function tutBoard(kind,tpl,rack,mia){
-  clearStory();S.cur=0;
+  clearStory();S.cur=0;S.exchanged=false;S.mode='place';
   if(mia){S.players=[S.players[0],{id:null,name:'Mia',score:0,rack:tutRack(mia),color:COLORS[1],team:null}];S.n=2;}
   else if(S.players.length>1){S.players=[S.players[0]];S.n=1;}
   S.tafeln=[makeTafel(kind,0,0,'t0',tpl)];
@@ -1913,6 +2122,16 @@ async function runTutorialFlow(){
       place(1,1,'🌧️','… und dann 🌧️ dahinter','','Genau!'),
       place('c',0,'🎉','Was passiert jetzt?','Leg es hier unten hin','Richtig! Wir feiern 🎉'),
       endTurn('Prima!')]},
+    {noRing:true,
+     setup:()=>{tutBoard('mini',{rows:[['🌧️','→','🍕'],['🌧️']],concl:['E']},['🐱','☂️','🎉']);S.bag=[Object.assign(newTile('🍕'),{orange:false,glitter:false})];render();},steps:[
+      {t:'Dir fehlt die Pizza 🍕',sub:'Tausch einen Stein gegen einen neuen aus dem Beutel',at:()=>$('#dock [data-act="ex1"]'),ok:'Gut!',
+        task:()=>({goal:()=>S.mode==='exchange'||S.exchanged})},
+      {t:'Tipp einen Stein an, den du nicht brauchst',sub:'',at:()=>$('#dock .tile'),ok:'Genau!',
+        task:()=>({goal:()=>S.exchanged||S.exSel.length===1})},
+      {t:'Jetzt auf „Tauschen“',sub:'',at:()=>$('#dock [data-act="exgo"]'),ok:'Neuer Stein!',
+        task:()=>({goal:()=>S.exchanged})},
+      place('c',0,'🍕','Da ist die Pizza! Leg sie hier unten hin','','Richtig!'),
+      endTurn('Prima! Tauschen geht einmal pro Zug, bevor du legst.')]},
     {noRing:true,
      setup:()=>tutBoard('mini',{rows:[['🌧️','→','🍕'],['🌧️']],concl:['E']},['🐱','☂️','🎉'],[{s:'🍕',orange:true},'☂️','🐱','🎉']),steps:[
       place('c',0,'🍕','Dir fehlt die Pizza 🍕!','Nimm die orange von Mia','Orange Steine darfst du dem Gegner abnehmen!',
@@ -2017,32 +2236,37 @@ const Bt={key:null,at:0,running:false};
 function botHere(){return S.screen==='game'&&S.online&&!S.tutorial&&!S.ended&&S.status==='playing'&&!S.busy&&!!S.players&&curP().bot&&meIdx()>=0;}
 function botSolve(tf,free,rack){
   const used=new Set(),chosen=[];
+  const put=(f,j,i)=>{rowOf(tf,f.r).slots[f.k]={tile:rack[j],by:S.cur,tent:true,from:S.cur,slot:j};used.add(j);chosen[i]={ri:j,k:f.k,r:f.r};};
+  const undo=(f,j,i)=>{rowOf(tf,f.r).slots[f.k]=null;used.delete(j);chosen[i]=null;};
   const rec=i=>{
     if(i===free.length)return evalTafel(tf,S.cur).ok;
     const f=free[i];
+    if(f.ty==='n'&&rec(i+1))return true;           // ¬-Felder bleiben, wenn es geht, leer
     for(let j=0;j<rack.length;j++){
       const t=rack[j];if(!t||used.has(j))continue;
-      if(!(f.ty==='E'?DEF[t.s][0]==='L':t.s==='→'))continue;
-      rowOf(tf,f.r).slots[f.k]={tile:t,by:S.cur,tent:true,from:S.cur,slot:j};used.add(j);chosen[i]={ri:j,k:f.k,r:f.r};
+      if(!(f.ty==='E'?DEF[t.s][0]==='L':f.ty==='n'?t.s==='¬':t.s==='→'))continue;
+      put(f,j,i);
       if(rec(i+1))return true;
-      rowOf(tf,f.r).slots[f.k]=null;used.delete(j);
+      undo(f,j,i);
     }
     return false;
   };
   const ok=rec(0);
   if(ok)free.forEach(f=>{rowOf(tf,f.r).slots[f.k]=null;});
-  return ok?chosen.map(c=>({...c})):null;
+  return ok?chosen.filter(Boolean).map(c=>({...c})):null;
 }
 function botFindMove(bi){
   const rack=S.players[bi].rack,cands=[];
   for(const tf of S.tafeln){
     if(tf.solved||tf.concl.locked)continue;
-    const free=[];
+    const free=[],nf=[];
     [...tf.rows,tf.concl].forEach((row,ri)=>row.types.forEach((ty,k)=>{
-      if((ty==='E'||ty==='J')&&!row.slots[k])free.push({r:ri===tf.rows.length?'c':ri,k,ty});}));
+      const r=ri===tf.rows.length?'c':ri;
+      if((ty==='E'||ty==='J')&&!row.slots[k])free.push({r,k,ty});
+      else if(ty==='n'&&!row.slots[k])nf.push({r,k,ty});}));
     if(!free.length||free.length>MAX_NEW)continue;
-    const plan=botSolve(tf,free,rack);
-    if(plan)cands.push({tid:tf.id,plan,n:free.length});
+    const plan=botSolve(tf,[...free,...nf],rack);
+    if(plan&&plan.length<=MAX_NEW)cands.push({tid:tf.id,plan,n:plan.length});
   }
   if(!cands.length)return null;
   cands.sort((a,b)=>a.n-b.n);
@@ -2158,7 +2382,8 @@ function dbErr(e){
   else toast('Die Verbindung hakt gerade. Versuch es gleich noch einmal.','Kurz offline');
 }
 function writeGame(){
-  if(!S.online||S.tutorial)return Promise.resolve();
+  if(!S.online||S.tutorial||S.bz)return Promise.resolve();
+  sendHeartbeat();
   const data=serialize(),ref=P.db.doc('games/'+S.code);
   writeQ=writeQ.then(()=>ref.set(data)).then(()=>{if(S.mergeTo)writeJoin();}).catch(async e=>{
     if(e&&e.code==='unavailable'){await sleep(400+Math.random()*600);return ref.set(data).catch(dbErr);}
@@ -2168,11 +2393,11 @@ function writeGame(){
 }
 // Laufender Zug: andere sehen live, was gelegt wird
 function scheduleDraft(){
-  if(!S.online||S.tutorial||!isMyTurn()||S.screen!=='game')return;
+  if(!S.online||S.tutorial||S.bz||!isMyTurn()||S.screen!=='game')return;
   clearTimeout(draftTimer);draftTimer=setTimeout(sendDraft,160);
 }
 function sendDraft(){
-  if(!S.online||!isMyTurn())return;
+  if(!S.online||S.bz||!isMyTurn())return;
   const hidden=[];allEntries(e=>{if(e.tent)hidden.push(e.from+':'+e.slot);});
   const d=clone({turn:S.turn,tafeln:S.tafeln,hidden});
   const j=JSON.stringify(d);if(j===draftSent)return;draftSent=j;
@@ -2188,6 +2413,7 @@ function subscribeGame(code){
   gameSubs.push(P.db.collection(`games/${code}/live`).onSnapshot(s=>{
     const docs=s.docs.map(d=>Object.assign(clone(d.data()),{_id:d.id}));
     L.liveAll=docs;
+    bzFinCheck();
     const dr=docs.find(x=>x._id==='draft');S.draft=dr||null;
     L.intro=docs.filter(x=>x._id.startsWith('intro_'));if(S.introCode){renderCoachBtns();checkIntro();}
     if(S.screen==='game'&&!S.busy&&activeDraft()){renderRacks();renderBoard();}
@@ -2208,6 +2434,7 @@ async function onGameSnap(snap){
   if(S.screen==='lobby'||S.screen==='event')return enterGame(d,true);
   if(S.screen!=='game'||!S.online||S.code!==d.code)return;
   if((d.rev||0)<=(S.rev||0))return;
+  if(S.bz){if(d.status==='blitz')return;bzAbort();}
   const wasEnded=S.ended;
   deserialize(d);S.online=true;if(S.mergeTo)writeJoin();
   const lm=d.lastMove;
@@ -2215,15 +2442,15 @@ async function onGameSnap(snap){
     S.animTurn=lm.turn;
     if(lm.kind==='level'){await levelIntro(lm,true);return;}
     S.busy=true;
-    if(!lm.skipped||lm.levelDone)await playMove(lm);else render();
+    if(!lm.skipped||lm.levelDone)await playSafe(lm);else render();
     S.busy=false;
     if(S.ended&&!wasEnded)return endGame();
-    if(S.status==='nextlevel'){render();advanceLevel(6000+Math.random()*3000);return;}
+    if(S.status==='blitz'){render();startBz();return;}
     render();turnNotice(lm);
   }else{
     render();
     if(S.ended&&!wasEnded)return endGame();
-    if(S.status==='nextlevel')advanceLevel(4000+Math.random()*3000);
+    if(S.status==='blitz')startBz();
   }
 }
 async function enterGame(d,withDeal){
@@ -2233,7 +2460,7 @@ async function enterGame(d,withDeal){
   showScreen('game');layout();
   if(withDeal)await deal();else{$('#boardHolder').classList.remove('pre');render();}
   if(S.ended)return endGame();
-  if(S.status==='nextlevel'){advanceLevel(3000+Math.random()*2000);return;}
+  if(S.status==='blitz'){startBz();return;}
   if(S.status==='intro'){toast('Die Gruppe schaut gerade das Tutorial.','','turn',2500);return;}
   if(isMyTurn())toast(S.turn===1?'Du beginnst. Zieh einen Stein auf ein Feld.':'Du bist dran!','','turn',2600);
   else if(meIdx()<0)toast('Du schaust bei diesem Spiel zu.','','turn',2600);
@@ -2558,9 +2785,10 @@ function parseJoinCode(text){
 /* ---------- Anwesenheit: Herzschlag ---------- */
 let HB_MS=15000,hbLast=0;
 function sendHeartbeat(){
-  if(!P.online||!E.code||(S.screen!=='event'&&S.screen!=='game')||isEvAdmin())return;
+  const ec=E.code||S.eventCode;
+  if(!P.online||!ec||(S.screen!=='event'&&S.screen!=='game')||isEvAdmin())return;
   hbLast=Date.now();
-  const ref=P.db.doc(`events/${E.code}/people/${P.uid}`);
+  const ref=P.db.doc(`events/${ec}/people/${P.uid}`);
   // fehlt die Karte (z. B. nach einem Verbindungsabbruch), wird sie vollständig neu angelegt
   ref.update({hb:hbLast}).catch(()=>{ref.set({id:P.uid,name:E.myName||myName()||'Spieler',at:hbLast,hb:hbLast}).catch(()=>{});});
 }
@@ -2581,7 +2809,7 @@ async function copyFixed(){
 /* ================= Spielleitung: Gruppen, Bot, Nachrücken ================= */
 let GROUP_SIZE=3,GROUP_WAIT_MS=30000;     // 3 Personen starten sofort, sonst nach 30 s zu zweit bzw. gegen den Bot
 let HOST_HB_MS=30000,ACTIVE_MS=300000;    // die Spielleitung meldet sich alle 30 s, nach 5 Minuten Stille gilt ihr Spiel als nicht mehr aktiv
-let AWAY_MS=60000,WARM_MS=600000;      // nach 60 s ohne Lebenszeichen gilt jemand als weg, sein Platz bleibt 10 min frei
+let AWAY_MS=90000,WARM_MS=600000;      // nach 60 s ohne Lebenszeichen gilt jemand als weg, sein Platz bleibt 10 min frei
 const E={code:null,ev:null,people:[],games:{},subbed:new Set(),skipped:new Set(),beat:false,working:false,again:false};
 let eventSubs=[],dashSubs=[];
 const isEvAdmin=()=>!!E.ev&&E.ev.adminId===P.uid;
@@ -2900,7 +3128,7 @@ function groupInfo(g){
     merging:(ev.merges||{})[p.id]&&((E.games[(ev.merges[p.id]||{}).to]||{}).groupName||'')}));
   if(d.status==='ended')return{chip:'Fertig',cls:'over',meta:`Endstand nach Level ${d.level}`,players,d};
   if(d.status==='intro')return{chip:'Tutorial',cls:'intro',meta:'Die Gruppe schaut das Tutorial',players,d};
-  if(d.status==='nextlevel')return{chip:'Neues Level',cls:'blitz',meta:`Level ${d.level} von ${LEVELS.length} geschafft`,players,d,solved,total};
+  if(d.status==='blitz')return{chip:'Blitzrunde',cls:'blitz',meta:`Level ${d.level} von ${LEVELS.length} geschafft`,players,d,solved,total};
   return{chip:`Level ${d.level}/${LEVELS.length}`,cls:'',meta:`${solved} von ${total} Tafeln gelöst${g.bot?' · gegen Bot':''}`,players,d,solved,total};
 }
 function renderDash(){
@@ -2945,10 +3173,19 @@ function renderDash(){
       <button class="linkbtn" data-act="home">Zum Hauptmenü</button></div>`;
 }
 async function adminSkip(gc,quiet){
-  const d=clone(E.games[gc]);if(!d||d.status!=='playing')return;
-  const mover=d.cur;d.passes=(d.passes||0)+1;d.cur=(d.cur+1)%d.players.length;d.turn++;d.rev++;d.exchanged=false;d.updatedAt=Date.now();
-  d.lastMove={turn:d.turn,by:mover,skipped:true,placed:[],solved:[],faded:[]};
-  try{await P.db.doc('games/'+gc).set(d);if(!quiet)toast(`Der Zug von ${d.players[mover].name} wurde übersprungen.`);}catch(e){dbErr(e);}
+  const t0=E.games[gc];if(!t0||t0.status!=='playing')return;
+  const ref=P.db.doc('games/'+gc);let who='';
+  try{
+    await P.db.runTransaction(async tx=>{
+      const d=(await tx.get(ref)).data();
+      if(!d||d.status!=='playing'||d.turn!==t0.turn)return;      // inzwischen weitergespielt: nichts überschreiben
+      const mover=d.cur;who=d.players[mover].name;
+      d.passes=(d.passes||0)+1;d.cur=(d.cur+1)%d.players.length;d.turn++;d.rev++;d.exchanged=false;d.updatedAt=Date.now();
+      d.lastMove={turn:d.turn,by:mover,skipped:true,placed:[],solved:[],faded:[]};
+      tx.set(ref,d);
+    });
+    if(who&&!quiet)toast(`Der Zug von ${who} wurde übersprungen.`);
+  }catch(e){dbErr(e);}
 }
 async function adminEndGame(gc,quiet){
   const d=E.games[gc];if(!d||d.status==='ended')return;
@@ -3001,7 +3238,7 @@ const ACT={
   go(){const names=$$('#names input').map((i,k)=>i.value.trim()||'Spieler '+(k+1));
     S.pendingLocal={names,turnTime:S.localTime??DEFAULT_TURN_TIME};startTutorial('local');},
   tutSkip(){if(S.tutorial&&!S.introCode)endTutorial();},
-  home(){closeModal();fingerHide();hideTip('tip');hideTip('tip2');S.tutorial=false;S.introCode=null;renderTutBanner();unsub(gameSubs);unsub(listSubs);unsub(eventSubs);unsub(dashSubs);E.ev=null;S.tutorial=false;S.ended=false;S.players=null;S.online=false;$('#coach').classList.add('hidden');$('#toasts').innerHTML='';showScreen('start');},
+  home(){bzAbort();closeModal();fingerHide();hideTip('tip');hideTip('tip2');S.tutorial=false;S.introCode=null;renderTutBanner();unsub(gameSubs);unsub(listSubs);unsub(eventSubs);unsub(dashSubs);E.ev=null;S.tutorial=false;S.ended=false;S.players=null;S.online=false;$('#coach').classList.add('hidden');$('#toasts').innerHTML='';showScreen('start');},
   again(){startLocalGame(S.players.map(p=>p.name),S.turnTime);},
   tutStart(){S.tutorial=false;$('#coach').classList.add('hidden');fingerHide();ACT.home();},
   coachNext(){coachNext();},
@@ -3026,6 +3263,7 @@ const ACT={
   ex3(){if(userOK())actExStart(3);},
   exgo(){if(userOK())actExGo();},
   undo(){if(userOK())actUndo();},
+  bzGo(){bzGo();},
   cancel(){if(userOK()){cancelMode();render();}},
   createEvent(){if(P.online)createEvent();},
   nameOk(){nameOk();},
